@@ -225,6 +225,19 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .rowlist{display:flex;flex-direction:column;gap:6px}
 .rrow{display:grid;grid-template-columns:120px 118px 80px 100px 1fr 28px;gap:6px;align-items:center}
 .rrow.rem{grid-template-columns:118px 1fr 28px 28px;background:none;padding:0}
+.rrow.role{display:grid;grid-template-columns:auto minmax(0,1fr) 118px 28px;grid-template-areas:"chk title type del" "pay pay pay pay";gap:6px 8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r)}
+.rrow.role.applied{background:var(--green-soft);border-color:transparent}
+.rrow.role .applied-lbl{grid-area:chk;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.rrow.role.applied .applied-lbl{color:var(--green);font-weight:600}
+.rrow.role .title{grid-area:title} .rrow.role .type{grid-area:type} .rrow.role .iconbtn{grid-area:del}
+.rrow.role .pay{grid-area:pay;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media (max-width:520px){.rrow.role{grid-template-columns:auto minmax(0,1fr) 28px;grid-template-areas:"chk title del" "type type type" "pay pay pay"}.rrow.role .pay{grid-template-columns:1fr 1fr}}
+.rolelist{display:flex;flex-direction:column;gap:3px;font-size:13px}
+.rolelist .ro{display:flex;gap:8px;align-items:baseline;color:var(--ink3)}
+.rolelist .ro.applied{color:var(--ink)}
+.rolelist .ro .m{font-family:var(--mono);font-size:12px;color:var(--ink2);white-space:nowrap}
+.rolelist .ro .tick{width:14px;text-align:center;font-size:12px}
+.rolelist .ro.applied .tick{color:var(--green)}
 @media (max-width:700px){.rrow{grid-template-columns:1fr 1fr;padding:8px;border:1px solid var(--line);border-radius:var(--r)}.rrow .wide{grid-column:1/-1}}
 .rrow input,.rrow select{padding:5px 8px;font-size:13px}
 .rrow input[type=checkbox]{width:auto;justify-self:center}
@@ -348,31 +361,22 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
           <div class="hint" id="dupHint" hidden></div>
         </div>
         <div class="grid3">
-          <div class="field"><label for="f-role">Role</label><input id="f-role" type="text" list="roleList" placeholder="SDE, Data Scientist…"><datalist id="roleList"></datalist></div>
           <div class="field"><label for="f-tier">Tier</label>
             <select id="f-tier"><option value="">—</option><option>Tier 1</option><option>Tier 2</option><option>Tier 3</option><option>Internship Only</option><option>Summer PPO</option></select></div>
-          <div class="field"><label for="f-jobtype">Offer type</label>
-            <select id="f-jobtype"><option value="">—</option><option value="FTE">FTE</option><option value="Intern">Internship</option><option value="Intern + FTE">Intern + FTE</option><option value="PPO">Internship with PPO</option></select></div>
+          <div class="field"><label for="f-location">Location</label><input id="f-location" type="text" placeholder="Bengaluru"></div>
+          <div class="field"><label>Priority</label><div class="starpick" id="starpick"><button type="button" data-v="1">★</button><button type="button" data-v="2">★</button><button type="button" data-v="3">★</button></div><input type="hidden" id="f-priority" value="0"></div>
         </div>
         <div class="grid3">
-          <div class="field"><label for="f-location">Location</label><input id="f-location" type="text" placeholder="Bengaluru"></div>
           <div class="field"><label for="f-link">Portal / JD link</label><input id="f-link" type="url" placeholder="https://"></div>
-          <div class="field"><label>Priority</label><div class="starpick" id="starpick"><button type="button" data-v="1">★</button><button type="button" data-v="2">★</button><button type="button" data-v="3">★</button></div><input type="hidden" id="f-priority" value="0"></div>
+          <div class="field"><label for="f-branches">Eligible branches</label><input id="f-branches" type="text" placeholder="CSE, AIML"></div>
+          <div class="field"><label for="f-deadline">Apply by</label><input id="f-deadline" type="date"></div>
         </div>
       </fieldset>
 
-      <fieldset class="fs"><legend>Pay &amp; eligibility</legend>
-        <div class="grid3">
-          <div class="field"><label for="f-stipend">Stipend ₹/month</label><input id="f-stipend" type="number" min="0" step="500"></div>
-          <div class="field"><label for="f-base">Base LPA</label><input id="f-base" type="number" min="0" step="0.01"></div>
-          <div class="field"><label for="f-ctc">CTC LPA</label><input id="f-ctc" type="number" min="0" step="0.01"></div>
-        </div>
-        <div class="grid3">
-          <div class="field"><label for="f-branches">Eligible branches</label><input id="f-branches" type="text" placeholder="CSE, AIML"></div>
-          <div class="field"><label for="f-gpa">CGPA cutoff</label><input id="f-gpa" type="text" placeholder="8.0"></div>
-          <div class="field"><label for="f-deadline">Apply by</label><input id="f-deadline" type="date"></div>
-        </div>
-        <div class="hint" id="eligHint"></div>
+      <fieldset class="fs"><legend>Roles offered <button type="button" class="btn xs" id="addRole" style="margin-left:auto">+ Add role</button></legend>
+        <div class="rowlist" id="roles"></div>
+        <div class="hint" id="rolesHint">List every role this company is hiring for, then tick the ones you applied to. Pay and cutoff are per role.</div>
+        <div class="hint" id="eligHint" style="margin-top:6px"></div>
       </fieldset>
 
       <fieldset class="fs"><legend>Status</legend>
@@ -516,6 +520,19 @@ function migrate(a){
   if(typeof a.resume==="string") a.resume = a.resume ? {kind:"label",name:a.resume} : null;
   if(a.oa||a.interview||a.ppt){ if(a.ppt)a.rounds.push({id:uid(),type:"PPT",date:a.ppt,result:"done"}); if(a.oa)a.rounds.push({id:uid(),type:"OA",date:a.oa,result:"pending"}); if(a.interview)a.rounds.push({id:uid(),type:"Technical R1",date:a.interview,result:"pending"}); delete a.oa; delete a.interview; delete a.ppt; }
   if(a.reminderDate){ a.reminders.push({id:uid(),date:a.reminderDate,text:a.reminderText||"Reminder",done:!!a.reminderDone}); delete a.reminderDate; delete a.reminderText; delete a.reminderDone; }
+  if(!Array.isArray(a.roles)){ a.roles = (a.role||a.ctc||a.stipend) ? [{id:uid(),title:a.role||"",jobType:a.jobType||"",stipend:a.stipend??null,base:a.base??null,ctc:a.ctc??null,gpa:a.gpa||"",applied:true}] : []; }
+  deriveFromRoles(a);
+  return a;
+}
+// company-level summary fields (role, ctc, stipend, base, gpa, jobType) are derived from the roles list
+function deriveFromRoles(a){
+  const applied=a.roles.filter(r=>r.applied), pick=applied.length?applied:a.roles;
+  a.role=applied.map(r=>r.title).filter(Boolean).join(", ") || (a.roles.length?a.roles.length+" roles":"" );
+  a.appliedCount=applied.length;
+  const nums=k=>pick.map(r=>+r[k]).filter(n=>!isNaN(n)&&n>0);
+  a.ctc=nums("ctc").length?Math.max(...nums("ctc")):null; a.base=nums("base").length?Math.max(...nums("base")):null; a.stipend=nums("stipend").length?Math.max(...nums("stipend")):null;
+  const gpas=pick.map(r=>gpaNum(r.gpa)).filter(g=>g!=null); a.gpa=gpas.length?String(Math.min(...gpas)):"";
+  a.jobType=[...new Set(pick.map(r=>r.jobType).filter(Boolean))].join(" / ");
   return a;
 }
 const localStore={
@@ -692,14 +709,12 @@ function cardHTML(a,compact){
   const el=eligibility(a);
   const rounds=[...a.rounds].sort((x,y)=>(x.date||"").localeCompare(y.date||""));
   const rems=a.reminders.filter(r=>!r.done||!compact);
-  const pay = a.ctc?`${a.ctc} LPA`:""; const pay2=[a.base?`base ${a.base}`:"",a.stipend?`${fmtMoney(a.stipend)}/mo`:""].filter(Boolean).join(" · ");
   return `<article class="card ${a.archived?"archived":""}" data-id="${a.id}">
-    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${esc(a.role||"Role TBD")}${a.jobType?` · ${esc(a.jobType)}`:""}${a.location?` · ${esc(a.location)}`:""}</div></div>
+    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · not applied yet`:"No roles listed"}${a.location?` · ${esc(a.location)}`:""}</div></div>
       <div style="text-align:right">${a.priority?`<div class="stars">${"★".repeat(a.priority)}</div>`:""}<span class="dot ${a.status}"></span>${statusSelect(a)}</div></div>
     <div class="tags">${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:""}${el.map(e=>`<span class="tag ${e.c}">${e.t}</span>`).join("")}</div>
+    ${a.roles.length?`<div class="rolelist">${(compact?a.roles.filter(r=>r.applied):a.roles).map(r=>`<div class="ro ${r.applied?"applied":""}"><span class="tick">${r.applied?"✓":"○"}</span><span style="flex:1">${esc(r.title||"(untitled)")}${r.jobType?` <span class="hint">${esc(r.jobType)}</span>`:""}</span><span class="m">${[r.ctc?r.ctc+" LPA":"",r.stipend?fmtMoney(r.stipend)+"/mo":"",r.gpa?"cutoff "+esc(r.gpa):""].filter(Boolean).join(" · ")}</span></div>`).join("")}</div>`:""}
     <dl class="kv">
-      ${pay||pay2?`<dt>Pay</dt><dd class="num">${pay}${pay2?` <span style="color:var(--ink3)">${pay2}</span>`:""}</dd>`:""}
-      ${a.gpa?`<dt>Cutoff</dt><dd class="num">${esc(a.gpa)}</dd>`:""}
       ${a.resume&&!compact?`<dt>Resume</dt><dd>${resumeLinkHTML(a.resume,a.id)}</dd>`:""}
       ${a.deadline&&SRANK[a.status]===0?`<dt>Apply by</dt><dd class="num">${fmtD(a.deadline)} <span style="color:var(--ink3)">${rel(daysFrom(a.deadline))}</span></dd>`:""}
       ${(a.status==="offer"||a.status==="accepted")&&(a.offer?.ctc||a.offer?.by)?`<dt>Offer</dt><dd class="num">${a.offer.ctc?a.offer.ctc+" LPA":""}${a.offer.by?` · accept by ${fmtD(a.offer.by)}`:""}${a.offer.accepted==="yes"?" · accepted":a.offer.accepted==="no"?" · declined":""}</dd>`:""}
@@ -721,7 +736,7 @@ function renderList(){
     const cols=[["notapplied","To apply"],["applied","Applied"],["oa","OA done"],["shortlisted","Shortlisted"],["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected / out"]];
     w.innerHTML=`<div class="board">${cols.map(([k,l])=>{const items=list.filter(a=>a.status===k||(k==="rejected"&&["withdrawn","ineligible"].includes(a.status))); return `<div class="col"><h4>${l}<span>${items.length}</span></h4><div style="display:flex;flex-direction:column;gap:8px">${items.map(a=>cardHTML(a,true)).join("")}</div></div>`;}).join("")}</div>`; return;
   }
-  const cols=[["company","Company"],["role","Role"],["tier","Tier"],["status","Status"],["ctc","CTC"],["stipend","Stipend"],["gpa","Cutoff"],["next","Next date"],["priority","Priority"],["updatedAt","Updated"]];
+  const cols=[["company","Company"],["role","Applied for"],["tier","Tier"],["status","Status"],["ctc","CTC"],["stipend","Stipend"],["gpa","Cutoff"],["next","Next date"],["priority","Priority"],["updatedAt","Updated"]];
   const rows=[...list].sort((a,b)=>{const k=tblSort.k; let x=k==="next"?nextDate(a)||"":a[k]??"", y=k==="next"?nextDate(b)||"":b[k]??""; if(typeof x==="number"||typeof y==="number"){x=+x||0;y=+y||0;} const c=x<y?-1:x>y?1:0; return tblSort.asc?c:-c;});
   w.innerHTML=`<div class="tblwrap"><table id="myTbl"><thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" class="${tblSort.k===k?"sorted":""} ${tblSort.asc?"asc":""}">${l}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map(a=>`<tr>
     <td class="co">${esc(a.company)}</td><td>${esc(a.role||"—")}</td><td>${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:"—"}</td><td><span class="dot ${a.status}"></span>${statusSelect(a)}</td>
@@ -816,29 +831,49 @@ function renderResumeBox(){
   else if(r) b.innerHTML=`<span>${r.kind==="label"?"Noted as: "+esc(r.name):`Attached: ${resumeLinkHTML(r,"draft")}`}</span><button type="button" class="btn ghost" data-rremove>Remove</button>`;
   else b.innerHTML=`<span class="hint">No resume attached. ${assets||store?.sb?"Stored with your tracker.":"Stored in this browser."}</span>`;
 }
-function eligHint(){ const el=eligibility({gpa:F("gpa").value,branches:F("branches").value}); $("#eligHint").innerHTML=el.map(e=>`<span class="hint ${e.c}" style="margin-right:12px">${e.t}</span>`).join("")||(profile.cgpa?"":`<span class="hint">Set your CGPA and branch under Profile to check eligibility automatically.</span>`); }
-function dupCheck(){ const id=F("id").value, k=norm(F("company").value); const d=apps.find(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d; if(d) h.innerHTML=`Already tracking <b>${esc(d.company)}</b>${d.role?" ("+esc(d.role)+")":""}. Save anyway for a different role, or <a href="#" data-edit="${d.id}">edit that one</a>.`; }
+const JOB_TYPES=[["",""],["FTE","FTE"],["Intern","Internship"],["Intern + FTE","Intern + FTE"],["PPO","Intern w/ PPO"]];
+function renderRoles(){
+  $("#roles").innerHTML=draft.roles.map((r,i)=>`<div class="rrow role ${r.applied?"applied":""}">
+    <label class="applied-lbl" title="I applied for this role"><input type="checkbox" data-oi="${i}" data-f="applied" ${r.applied?"checked":""}>${r.applied?"Applied":"Apply?"}</label>
+    <input type="text" class="title" data-oi="${i}" data-f="title" value="${esc(r.title||"")}" placeholder="Role title" aria-label="Role title">
+    <select class="type" data-oi="${i}" data-f="jobType" aria-label="Type">${JOB_TYPES.map(([v,l])=>`<option value="${v}" ${r.jobType===v?"selected":""}>${l||"Type…"}</option>`).join("")}</select>
+    <button type="button" class="iconbtn" data-odel="${i}" title="Remove role">✕</button>
+    <div class="pay">
+      <input type="number" min="0" step="500" data-oi="${i}" data-f="stipend" value="${r.stipend??""}" placeholder="Stipend ₹/mo" aria-label="Stipend per month">
+      <input type="number" min="0" step="0.01" data-oi="${i}" data-f="base" value="${r.base??""}" placeholder="Base LPA" aria-label="Base LPA">
+      <input type="number" min="0" step="0.01" data-oi="${i}" data-f="ctc" value="${r.ctc??""}" placeholder="CTC LPA" aria-label="CTC LPA">
+      <input type="text" data-oi="${i}" data-f="gpa" value="${esc(r.gpa||"")}" placeholder="CGPA cutoff" aria-label="CGPA cutoff">
+    </div></div>`).join("");
+  $("#rolesHint").hidden=!!draft.roles.length; eligHint();
+}
+function addRole(r={},focus){ draft.roles.push({id:uid(),title:"",jobType:"",stipend:null,base:null,ctc:null,gpa:"",applied:false,...r}); renderRoles(); if(focus){ const el=$("#roles .rrow:last-child input[type=text]"); el&&el.focus(); } }
+function guessType(r,tier){ return tier==="Internship Only"?"Intern":tier==="Summer PPO"?"PPO":(typeof r.stipend==="number"&&typeof r.ctc==="number")?"Intern + FTE":typeof r.ctc==="number"?"FTE":typeof r.stipend==="number"?"Intern":""; }
+function eligHint(){
+  const tmp=deriveFromRoles({roles:draft.roles||[]}); const el=eligibility({gpa:tmp.gpa,branches:F("branches").value});
+  $("#eligHint").innerHTML=el.map(e=>`<span class="hint ${e.c}" style="margin-right:12px">${e.t}</span>`).join("")||(profile.cgpa?"":`<span class="hint">Set your CGPA and branch under Profile to check eligibility automatically.</span>`); }
+function dupCheck(){ const id=F("id").value, k=norm(F("company").value); const d=apps.find(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d; if(d) h.innerHTML=`You're already tracking <b>${esc(d.company)}</b> — add the role there instead: <a href="#" data-edit="${d.id}">open it</a>.`; }
 function openForm(a){
   form.reset(); $("#sug").hidden=true; $("#dupHint").hidden=true;
-  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null};
+  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),roles:JSON.parse(JSON.stringify(a?.roles||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null};
   $("#dlgTitle").textContent=a?.id?"Edit "+a.company:"Add a company"; $("#dlgSub").hidden=!!a?.id;
   $("#delBtn").hidden=!a?.id;
-  F("id").value=a?.id||""; F("company").value=a?.company||""; F("role").value=a?.role||""; F("tier").value=a?.tier||""; F("jobtype").value=a?.jobType||"";
+  F("id").value=a?.id||""; F("company").value=a?.company||""; F("tier").value=a?.tier||"";
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
-  F("stipend").value=a?.stipend??""; F("base").value=a?.base??""; F("ctc").value=a?.ctc??""; F("branches").value=a?.branches||""; F("gpa").value=a?.gpa||""; F("deadline").value=a?.deadline||"";
+  F("branches").value=a?.branches||""; F("deadline").value=a?.deadline||"";
   F("status").value=a?.status||"notapplied"; F("outcome").value=a?.outcome||"";
   F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
   F("resume").value=""; F("contact").value=a?.contact||""; F("notes").value=a?.notes||""; F("archived").checked=!!a?.archived;
-  renderPipeline(); renderStars(); renderRounds(); renderRems(); renderResumeBox(); eligHint(); showPrev(F("company").value);
-  dlg.showModal(); $(".mform").scrollTop=0; setTimeout(()=>F(a?.id?"role":"company").focus(),50);
+  renderPipeline(); renderStars(); renderRoles(); renderRounds(); renderRems(); renderResumeBox(); showPrev(F("company").value);
+  dlg.showModal(); $(".mform").scrollTop=0; setTimeout(()=>F("company").focus(),50);
 }
 function showPrev(name,opts={}){
   const p=$("#mprev"); const hit=findPrev(name);
-  if(!hit){ p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${name?esc(name)+" didn't visit last year":"How did it go last year?"}</h2><p class="nohit">${name?"No record in the 2026 sheet — probably new for your batch. Fill in the numbers yourself and they'll be here for next year.":"Roles, stipend, base/CTC, OA and interview dates, how many got placed and the GPA cutoff appear here as you type a company name."}</p>`; $("#roleList").innerHTML=""; return; }
-  $("#roleList").innerHTML=hit.hits.flatMap(h=>h.roles.map(r=>r.role)).filter(Boolean).map(r=>`<option value="${esc(r)}">`).join("");
-  p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${esc(hit.name)} <span class="tag prev">visited ${hit.hits.length>1?hit.hits.length+"×":"✓"}</span></h2>`+
+  if(!hit){ p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${name?esc(name)+" didn't visit last year":"How did it go last year?"}</h2><p class="nohit">${name?"No record in the 2026 sheet — probably new for your batch. Fill in the numbers yourself and they'll be here for next year.":"Roles, stipend, base/CTC, OA and interview dates, how many got placed and the GPA cutoff appear here as you type a company name."}</p>`; return; }
+  const roleOf=(h,r)=>({tier:h.tier,title:r.role||"",stipend:typeof r.stipend==="number"?r.stipend:null,base:typeof r.base==="number"?r.base:null,ctc:typeof r.ctc==="number"?r.ctc:null,gpa:r.gpa!=null?String(r.gpa):"",branches:r.branches||h.branches||""});
+  p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${esc(hit.name)} <span class="tag prev">visited ${hit.hits.length>1?hit.hits.length+"×":"✓"}</span></h2>
+    <button type="button" class="btn sm" data-useall='${esc(JSON.stringify(hit.hits.flatMap(h=>h.roles.map(r=>roleOf(h,r)))))}'>Add all ${hit.hits.reduce((n,h)=>n+h.roles.length,0)} roles to my list</button>`+
     hit.hits.map(h=>`<div class="pmeta"><span class="tag tier">${esc(h.tier)}</span> ${h.branches?"· eligible: "+esc(h.branches):""}</div>`+
-      h.roles.map(r=>`<div class="prole"><div class="ph"><b>${esc(r.role||"(role not listed)")}</b><button type="button" class="btn xs" data-use='${esc(JSON.stringify({tier:h.tier,role:r.role,stipend:r.stipend,base:r.base,ctc:r.ctc,gpa:r.gpa,branches:r.branches||h.branches}))}'>Use these numbers</button></div>
+      h.roles.map(r=>`<div class="prole"><div class="ph"><b>${esc(r.role||"(role not listed)")}</b><button type="button" class="btn xs" data-use='${esc(JSON.stringify(roleOf(h,r)))}'>Add this role</button></div>
         <div class="stats">
           <div>Stipend<b>${r.stipend!=null?(typeof r.stipend==="number"?fmtMoney(r.stipend)+"/mo":esc(r.stipend)):"—"}</b></div>
           <div>Base<b>${r.base!=null?esc(r.base)+(typeof r.base==="number"?" LPA":""):"—"}</b></div>
@@ -846,25 +881,30 @@ function showPrev(name,opts={}){
           <div>GPA cutoff<b>${esc(r.gpa??"—")}</b></div>
           <div>PPT<b>${esc(r.ppt??"—")}</b></div><div>OA<b>${esc(r.oa??"—")}</b></div><div>Interview<b>${esc(r.interview??"—")}</b></div><div>Placed<b>${placedStr(r)}</b></div>
         </div>${r.note?`<div class="pn">${esc(r.note)}</div>`:""}</div>`).join("")).join("");
-  if(opts.autofill){ const h=hit.hits[0], r=h.roles.find(r=>r.ctc||r.stipend)||h.roles[0]||{}; applyUse({tier:h.tier,role:r.role,stipend:r.stipend,base:r.base,ctc:r.ctc,gpa:r.gpa,branches:r.branches||h.branches},true); }
+  if(opts.autofill && !draft.roles.length){ applyUse(hit.hits.flatMap(h=>h.roles.map(r=>roleOf(h,r)))); }
 }
-function applyUse(u,onlyEmpty){
-  const set=(id,v)=>{ if(v==null||v==="")return; const el=F(id); if(onlyEmpty&&el.value)return; el.value=typeof v==="number"?v:String(v); };
-  set("tier",u.tier); set("role",u.role); set("branches",u.branches); set("gpa",u.gpa);
-  set("stipend",typeof u.stipend==="number"?u.stipend:null); set("base",typeof u.base==="number"?u.base:null); set("ctc",typeof u.ctc==="number"?u.ctc:null);
-  if(!F("jobtype").value){ F("jobtype").value = u.tier==="Internship Only"?"Intern":u.tier==="Summer PPO"?"PPO":(typeof u.stipend==="number"&&typeof u.ctc==="number")?"Intern + FTE":typeof u.ctc==="number"?"FTE":""; }
-  eligHint();
+// add one or many 2026 roles to the draft (skips titles already present)
+function applyUse(list){
+  const arr=Array.isArray(list)?list:[list]; let n=0;
+  for(const u of arr){
+    if(u.tier&&!F("tier").value) F("tier").value=u.tier;
+    if(u.branches&&!F("branches").value) F("branches").value=u.branches;
+    if(u.title&&draft.roles.some(r=>norm(r.title)===norm(u.title))) continue;
+    draft.roles.push({id:uid(),title:u.title||"",jobType:guessType(u,u.tier),stipend:u.stipend??null,base:u.base??null,ctc:u.ctc??null,gpa:u.gpa||"",applied:false}); n++;
+  }
+  renderRoles(); return n;
 }
 function collect(){
   const num=v=>v===""?null:+v; const old=apps.find(a=>a.id===F("id").value);
-  return { id:F("id").value||uid(), createdAt:old?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString(),
-    company:F("company").value.trim(), role:F("role").value.trim(), tier:F("tier").value, jobType:F("jobtype").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
-    stipend:num(F("stipend").value), base:num(F("base").value), ctc:num(F("ctc").value), branches:F("branches").value.trim(), gpa:F("gpa").value.trim(), deadline:F("deadline").value,
+  return deriveFromRoles({ id:F("id").value||uid(), createdAt:old?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString(),
+    company:F("company").value.trim(), tier:F("tier").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
+    branches:F("branches").value.trim(), deadline:F("deadline").value,
+    roles:draft.roles.filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:r.id||uid(),title:(r.title||"").trim(),jobType:r.jobType||"",stipend:r.stipend===""||r.stipend==null?null:+r.stipend,base:r.base===""||r.base==null?null:+r.base,ctc:r.ctc===""||r.ctc==null?null:+r.ctc,gpa:(r.gpa||"").trim(),applied:!!r.applied})),
     status:F("status").value, outcome:F("outcome").value.trim(),
     rounds:draft.rounds.filter(r=>r.type||r.date).map(r=>({id:r.id||uid(),type:r.type||"Other",date:r.date||"",time:r.time||"",result:r.result||"pending",note:r.note||""})),
     reminders:draft.reminders.filter(r=>r.date||r.text).map(r=>({id:r.id||uid(),date:r.date||"",text:r.text||"",done:!!r.done})),
     offer:{ctc:num(F("offerctc").value),by:F("offerby").value,accepted:F("accepted").value},
-    resume:draft.resume, contact:F("contact").value.trim(), notes:F("notes").value.trim(), archived:F("archived").checked };
+    resume:draft.resume, contact:F("contact").value.trim(), notes:F("notes").value.trim(), archived:F("archived").checked });
 }
 let toastT; function toast(m,undo){ const t=$("#toast"); t.innerHTML=esc(m)+(undo?` <button type="button" id="undoBtn">Undo</button>`:""); if(undo) $("#undoBtn").onclick=()=>{undo();t.classList.remove("show");}; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),undo?6000:2200); }
 
@@ -877,10 +917,10 @@ async function download(filename,data,type){
   catch{ try{ await navigator.clipboard.writeText(data); toast("Download blocked here — copied to clipboard instead"); }catch{ toast("Couldn't export in this viewer"); } }
 }
 function toCSV(){
-  const cols=["company","role","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
+  const cols=["company","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
   const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[cols.join(",")];
-  for(const a of apps) lines.push(cols.map(c=>cell(c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:a[c])).join(","));
+  for(const a of apps) lines.push(cols.map(c=>cell(c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
   return lines.join("\r\n");
 }
 
@@ -916,14 +956,20 @@ $("#listArea").addEventListener("change",async e=>{
 });
 $("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline();}});
 $("#starpick").addEventListener("click",e=>{const b=e.target.closest("[data-v]"); if(b){F("priority").value=F("priority").value==b.dataset.v?0:b.dataset.v;renderStars();}});
-$("#mprev").addEventListener("click",e=>{const b=e.target.closest("[data-use]"); if(b){applyUse(JSON.parse(b.dataset.use),false);toast("Filled from 2026 data — edit anything that changed");}});
+$("#mprev").addEventListener("click",e=>{
+  const all=e.target.closest("[data-useall]"); if(all){ const n=applyUse(JSON.parse(all.dataset.useall)); toast(n?`Added ${n} role${n>1?"s":""} — tick the ones you apply for`:"Those roles are already in your list"); return; }
+  const b=e.target.closest("[data-use]"); if(b){ const n=applyUse(JSON.parse(b.dataset.use)); toast(n?"Role added — tick it once you apply":"That role is already in your list"); }
+});
+$("#addRole").addEventListener("click",()=>addRole({},true));
+$("#roles").addEventListener("input",e=>{const el=e.target; if(el.dataset.oi!=null){ draft.roles[+el.dataset.oi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value; if(el.type==="checkbox") renderRoles(); else eligHint(); }});
+$("#roles").addEventListener("click",e=>{const b=e.target.closest("[data-odel]"); if(b){draft.roles.splice(+b.dataset.odel,1);renderRoles();}});
 $("#addRound").addEventListener("click",()=>{ const last=draft.rounds[draft.rounds.length-1]; const next=ROUND_TYPES[Math.min(ROUND_TYPES.length-2,(last?ROUND_TYPES.indexOf(last.type):-1)+1)]; draft.rounds.push({id:uid(),type:next||"OA",date:"",time:"",result:"pending",note:""}); renderRounds(); const el=$("#rounds .rrow:last-child input[type=date]"); el&&el.focus(); });
 $("#addRem").addEventListener("click",()=>{ draft.reminders.push({id:uid(),date:"",text:"",done:false}); renderRems(); const el=$("#rems .rrow:last-child input[type=date]"); el&&el.focus(); });
 $("#rounds").addEventListener("input",e=>{const el=e.target; if(el.dataset.ri!=null) draft.rounds[+el.dataset.ri][el.dataset.f]=el.value;});
 $("#rounds").addEventListener("click",e=>{const b=e.target.closest("[data-rdel]"); if(b){draft.rounds.splice(+b.dataset.rdel,1);renderRounds();}});
 $("#rems").addEventListener("input",e=>{const el=e.target; if(el.dataset.mi!=null) draft.reminders[+el.dataset.mi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;});
 $("#rems").addEventListener("click",e=>{const b=e.target.closest("[data-mdel]"); if(b){draft.reminders.splice(+b.dataset.mdel,1);renderRems();}});
-["gpa","branches"].forEach(id=>F(id).addEventListener("input",eligHint));
+F("branches").addEventListener("input",eligHint);
 $("#dupHint").addEventListener("click",e=>{const a=e.target.closest("[data-edit]"); if(a){e.preventDefault(); const x=apps.find(y=>y.id===a.dataset.edit); if(x) openForm(x);}});
 // company autocomplete
 const sug=$("#sug"); let sugIdx=-1;
@@ -970,7 +1016,7 @@ $("#impBtn").addEventListener("click",()=>$("#impFile").click());
 $("#impFile").addEventListener("change",async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{ const j=JSON.parse(await f.text()); const inc=Array.isArray(j)?j:j.applications||[]; let n=0;
-    for(const raw of inc){ const a=migrate({...raw}); a.id ||= uid(); const ex=apps.find(x=>x.id===a.id||(norm(x.company)===norm(a.company)&&norm(x.role)===norm(a.role)));
+    for(const raw of inc){ const a=migrate({...raw}); a.id ||= uid(); const ex=apps.find(x=>x.id===a.id||norm(x.company)===norm(a.company));
       if(ex){ if((a.updatedAt||"")>(ex.updatedAt||"")){ a.id=ex.id; await store.save(a); n++; } } else { await store.save(a); n++; } }
     if(j.profile&&!profile.cgpa) await store.saveProfile(j.profile);
     toast(`Imported ${n} compan${n===1?"y":"ies"}`); render(); }

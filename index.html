@@ -232,6 +232,10 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .rrow.role .title{grid-area:title} .rrow.role .type{grid-area:type} .rrow.role .iconbtn{grid-area:del}
 .rrow.role .pay{grid-area:pay;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 @media (max-width:520px){.rrow.role{grid-template-columns:auto minmax(0,1fr) 28px;grid-template-areas:"chk title del" "type type type" "pay pay pay"}.rrow.role .pay{grid-template-columns:1fr 1fr}}
+.rejectbox{margin-top:8px;padding:12px 14px 4px;background:var(--red-soft);border-radius:var(--r)}
+.rejectbox .field label{color:var(--red)}
+.card .notes.rej{background:var(--red-soft);border-top:0;padding:8px 10px;border-radius:var(--r)}
+.card .notes.rej b{color:var(--red)}
 .rolelist{display:flex;flex-direction:column;gap:3px;font-size:13px}
 .rolelist .ro{display:flex;gap:8px;align-items:baseline;color:var(--ink3)}
 .rolelist .ro.applied{color:var(--ink)}
@@ -381,7 +385,14 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 
       <fieldset class="fs"><legend>Status</legend>
         <div class="pipeline" id="pipeline"></div><input type="hidden" id="f-status" value="notapplied">
-        <div class="field" style="margin-top:10px"><label for="f-outcome">Latest update</label><textarea id="f-outcome" placeholder="What's the current situation? e.g. OA cleared, shortlist expected Friday · Rejected after R2, feedback: system design"></textarea></div>
+        <div class="field" style="margin-top:10px"><label for="f-outcome">Latest update</label><textarea id="f-outcome" placeholder="What's the current situation? e.g. OA cleared, shortlist expected Friday"></textarea></div>
+        <div id="rejectFs" class="rejectbox" hidden>
+          <div class="grid2">
+            <div class="field"><label for="f-rejstage">Rejected at</label><select id="f-rejstage"><option value="">—</option><option>Resume shortlist</option><option>OA</option><option>Aptitude</option><option>Group discussion</option><option>Technical R1</option><option>Technical R2</option><option>Technical R3</option><option>Managerial</option><option>HR</option><option>After offer</option><option>Withdrew myself</option><option>Other</option></select></div>
+            <div class="field"><label for="f-rejdate">On</label><input id="f-rejdate" type="date"></div>
+          </div>
+          <div class="field"><label for="f-rejreason">Why — for future reference</label><textarea id="f-rejreason" placeholder="What went wrong, what they asked, what to prepare next time…"></textarea></div>
+        </div>
       </fieldset>
 
       <fieldset class="fs"><legend>Rounds <button type="button" class="btn xs" id="addRound" style="margin-left:auto">+ Add round</button></legend>
@@ -453,6 +464,20 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 </dialog>
 
 <div class="toast" id="toast" role="status"></div>
+
+<!-- quick rejection note (from the card status dropdown) -->
+<dialog id="rdlg" class="small">
+  <form class="mform" id="rform" method="dialog">
+    <h2 id="rdlgTitle">Rejected — note it down</h2>
+    <div class="sub">A line now saves you guessing later. You can edit this any time from the company's form.</div>
+    <div class="grid2">
+      <div class="field"><label for="r-stage">Rejected at</label><select id="r-stage"><option value="">—</option><option>Resume shortlist</option><option>OA</option><option>Aptitude</option><option>Group discussion</option><option>Technical R1</option><option>Technical R2</option><option>Technical R3</option><option>Managerial</option><option>HR</option><option>After offer</option><option>Withdrew myself</option><option>Other</option></select></div>
+      <div class="field"><label for="r-date">On</label><input id="r-date" type="date"></div>
+    </div>
+    <div class="field"><label for="r-reason">Why — for future reference</label><textarea id="r-reason" placeholder="What went wrong, what they asked, what to prepare next time…"></textarea></div>
+    <div class="mactions" style="border:0;padding-top:4px"><button type="button" class="btn" id="r-skip">Skip</button><button type="submit" class="btn primary">Save</button></div>
+  </form>
+</dialog>
 
 <!-- sign in (only used when Supabase is configured) -->
 <dialog id="adlg" class="small">
@@ -655,7 +680,8 @@ function stageRank(a){
   return r; }
 function eligibility(a){
   const out=[]; const g=gpaNum(a.gpa), me=parseFloat(profile.cgpa);
-  if(g!=null && !isNaN(me)) out.push(me>=g?{c:"ok",t:`CGPA ok (${me} ≥ ${g})`}:{c:"bad",t:`CGPA below cutoff (${me} < ${g})`});
+  if(g!=null && !isNaN(me)) out.push(me>=g?{c:"ok",t:`Cutoff ${g} · eligible`}:{c:"bad",t:`Below cutoff ${g}`});
+  else if(g!=null) out.push({c:"",t:`Cutoff ${g}`});
   if(profile.branch && a.branches){ const ok=a.branches.toUpperCase().split(/[,/ ]+/).includes(profile.branch.toUpperCase()); out.push(ok?{c:"ok",t:`${profile.branch} eligible`}:{c:"bad",t:`${profile.branch} not listed`}); }
   return out;
 }
@@ -721,6 +747,7 @@ function cardHTML(a,compact){
     </dl>
     ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(r.type)}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${r.result||"pending"}">${esc(r.result||"pending")}</span></div>`).join("")}</div>`:""}
     ${rems.map(r=>{const n=daysFrom(r.date); const cls=r.done?"done":(n<0?"over":""); return `<div class="rem ${cls}"><b class="num">${fmtD(r.date)}</b><span style="flex:1">${esc(r.text||"Reminder")}</span><small>${r.done?"done":rel(n)}</small><button class="btn xs ghost" data-rem="${r.id}" data-id="${a.id}" title="${r.done?"Reopen":"Mark done"}">${r.done?"↺":"✓"}</button></div>`;}).join("")}
+    ${(a.status==="rejected"||a.status==="withdrawn")&&(a.rejection?.reason||a.rejection?.stage)?`<div class="notes rej"><b>${a.status==="withdrawn"?"Withdrew":"Rejected"}${a.rejection.stage?" at "+esc(a.rejection.stage):""}${a.rejection.date?" · "+fmtD(a.rejection.date):""}</b>${a.rejection.reason&&!compact?`<br>${esc(a.rejection.reason)}`:""}</div>`:""}
     ${a.outcome&&!compact?`<div class="notes"><b>Latest:</b> ${esc(a.outcome)}</div>`:""}
     ${a.notes&&!compact?`<div class="notes">${esc(a.notes)}</div>`:""}
     <div class="actions">${a.link?`<a class="btn sm ghost" href="${esc(a.link)}" target="_blank" rel="noopener">Portal ↗</a>`:""}<button class="btn sm" data-act="edit" data-id="${a.id}">Edit</button></div>
@@ -806,7 +833,7 @@ function renderRef(){
 // ---------- add / edit form ----------
 const dlg=$("#dlg"), form=$("#form"); const F=id=>document.getElementById("f-"+id);
 let draft={rounds:[],reminders:[]};
-function renderPipeline(){ $("#pipeline").innerHTML=STATUSES.map(([k,l])=>`<button type="button" class="${k}" data-s="${k}" aria-pressed="${F("status").value===k}">${l}</button>`).join(""); $("#offerFs").hidden=!["offer","accepted"].includes(F("status").value); }
+function renderPipeline(){ const s=F("status").value; $("#pipeline").innerHTML=STATUSES.map(([k,l])=>`<button type="button" class="${k}" data-s="${k}" aria-pressed="${s===k}">${l}</button>`).join(""); $("#offerFs").hidden=!["offer","accepted"].includes(s); const rj=["rejected","withdrawn"].includes(s); $("#rejectFs").hidden=!rj; if(rj&&!F("rejdate").value) F("rejdate").value=todayISO(); if(rj&&s==="withdrawn"&&!F("rejstage").value) F("rejstage").value="Withdrew myself"; }
 function renderStars(){ const v=+F("priority").value; document.querySelectorAll("#starpick button").forEach(b=>b.classList.toggle("on",+b.dataset.v<=v)); }
 function renderRounds(){
   $("#rounds").innerHTML=draft.rounds.map((r,i)=>`<div class="rrow">
@@ -861,6 +888,7 @@ function openForm(a){
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
   F("branches").value=a?.branches||""; F("deadline").value=a?.deadline||"";
   F("status").value=a?.status||"notapplied"; F("outcome").value=a?.outcome||"";
+  F("rejstage").value=a?.rejection?.stage||""; F("rejdate").value=a?.rejection?.date||""; F("rejreason").value=a?.rejection?.reason||"";
   F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
   F("resume").value=""; F("contact").value=a?.contact||""; F("notes").value=a?.notes||""; F("archived").checked=!!a?.archived;
   renderPipeline(); renderStars(); renderRoles(); renderRounds(); renderRems(); renderResumeBox(); showPrev(F("company").value);
@@ -901,6 +929,7 @@ function collect(){
     branches:F("branches").value.trim(), deadline:F("deadline").value,
     roles:draft.roles.filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:r.id||uid(),title:(r.title||"").trim(),jobType:r.jobType||"",stipend:r.stipend===""||r.stipend==null?null:+r.stipend,base:r.base===""||r.base==null?null:+r.base,ctc:r.ctc===""||r.ctc==null?null:+r.ctc,gpa:(r.gpa||"").trim(),applied:!!r.applied})),
     status:F("status").value, outcome:F("outcome").value.trim(),
+    rejection:["rejected","withdrawn"].includes(F("status").value)?{stage:F("rejstage").value,date:F("rejdate").value,reason:F("rejreason").value.trim()}:(old?.rejection||null),
     rounds:draft.rounds.filter(r=>r.type||r.date).map(r=>({id:r.id||uid(),type:r.type||"Other",date:r.date||"",time:r.time||"",result:r.result||"pending",note:r.note||""})),
     reminders:draft.reminders.filter(r=>r.date||r.text).map(r=>({id:r.id||uid(),date:r.date||"",text:r.text||"",done:!!r.done})),
     offer:{ctc:num(F("offerctc").value),by:F("offerby").value,accepted:F("accepted").value},
@@ -917,10 +946,10 @@ async function download(filename,data,type){
   catch{ try{ await navigator.clipboard.writeText(data); toast("Download blocked here — copied to clipboard instead"); }catch{ toast("Couldn't export in this viewer"); } }
 }
 function toCSV(){
-  const cols=["company","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
+  const cols=["company","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","rejectedAt","rejectionReason","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
   const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[cols.join(",")];
-  for(const a of apps) lines.push(cols.map(c=>cell(c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
+  for(const a of apps) lines.push(cols.map(c=>cell(c==="rejectedAt"?[a.rejection?.stage,a.rejection?.date].filter(Boolean).join(" "):c==="rejectionReason"?a.rejection?.reason:c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
   return lines.join("\r\n");
 }
 
@@ -952,9 +981,26 @@ $("#listArea").addEventListener("click",async e=>{
 });
 $("#listArea").addEventListener("change",async e=>{
   const s=e.target.closest("[data-quick]"); if(!s) return; const a=apps.find(x=>x.id===s.dataset.quick); if(!a) return;
+  if(s.value==="rejected"||s.value==="withdrawn"){ askRejection(a,s.value); return; }
   await store.save({...a,status:s.value,updatedAt:new Date().toISOString()}); toast(`${a.company} → ${SLABEL[s.value]}`);
 });
-$("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline();}});
+$("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline(); if(!$("#rejectFs").hidden) setTimeout(()=>F("rejreason").focus(),50);}});
+// quick rejection dialog (card dropdown → Rejected / Withdrawn)
+const rdlg=$("#rdlg"); let rTarget=null;
+function askRejection(a,status){
+  rTarget={a,status}; $("#rdlgTitle").textContent=(status==="withdrawn"?"Withdrawing from ":"Rejected by ")+a.company;
+  const R=id=>document.getElementById("r-"+id);
+  R("stage").value=a.rejection?.stage||(status==="withdrawn"?"Withdrew myself":""); R("date").value=a.rejection?.date||todayISO(); R("reason").value=a.rejection?.reason||"";
+  rdlg.showModal(); setTimeout(()=>R("reason").focus(),50);
+}
+async function commitRejection(withNote){
+  const {a,status}=rTarget; rTarget=null; const R=id=>document.getElementById("r-"+id);
+  const rejection=withNote?{stage:R("stage").value,date:R("date").value,reason:R("reason").value.trim()}:(a.rejection||{stage:"",date:todayISO(),reason:""});
+  await store.save({...a,status,rejection,updatedAt:new Date().toISOString()}); rdlg.close(); toast(`${a.company} → ${SLABEL[status]}`);
+}
+$("#rform").addEventListener("submit",e=>{e.preventDefault(); commitRejection(true);});
+$("#r-skip").addEventListener("click",()=>commitRejection(false));
+rdlg.addEventListener("cancel",e=>{ e.preventDefault(); if(rTarget){ rTarget=null; rdlg.close(); renderList(); } });
 $("#starpick").addEventListener("click",e=>{const b=e.target.closest("[data-v]"); if(b){F("priority").value=F("priority").value==b.dataset.v?0:b.dataset.v;renderStars();}});
 $("#mprev").addEventListener("click",e=>{
   const all=e.target.closest("[data-useall]"); if(all){ const n=applyUse(JSON.parse(all.dataset.useall)); toast(n?`Added ${n} role${n>1?"s":""} — tick the ones you apply for`:"Those roles are already in your list"); return; }

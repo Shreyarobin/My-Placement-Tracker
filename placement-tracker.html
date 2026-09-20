@@ -1,0 +1,979 @@
+<meta charset="utf-8">
+<title>Placement Tracker '27</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#fafaf8; --paper:#ffffff; --wash:#f3f2ee; --line:#e7e5df; --line2:#d6d3cb;
+  --ink:#1c1f23; --ink2:#5b6068; --ink3:#8b9099;
+  --navy:#22405f; --navy-soft:#e8eef5;
+  --green:#2b6a4e; --green-soft:#e4f0ea;
+  --amber:#9a6a12; --amber-soft:#f8efd9;
+  --red:#a63d2f; --red-soft:#f7e4e0;
+  --plum:#6a4a7a; --plum-soft:#efe7f3;
+  --shadow:0 12px 32px rgba(28,31,35,.10), 0 1px 2px rgba(28,31,35,.06);
+  --serif:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --sans:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:6px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{color-scheme:light}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;margin:0;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:400;margin:0;line-height:1.1;text-wrap:balance;letter-spacing:-.01em}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.94em}
+a{color:var(--navy)}
+:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3);font-weight:600}
+
+/* ---------- header ---------- */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(250,250,248,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hwrap{max-width:1280px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-size:24px}
+.brand h1 em{font-style:italic;color:var(--navy)}
+.brand .yr{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase}
+nav{display:flex;gap:18px}
+nav button{border:0;background:none;padding:6px 0;cursor:pointer;color:var(--ink2);font-weight:500;border-bottom:2px solid transparent;font-size:14px}
+nav button:hover{color:var(--ink)}
+nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink)}
+.hspacer{flex:1}
+.sync{font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ink3);display:inline-block}
+.sync.ok i{background:var(--green)} .sync.local i{background:var(--amber)}
+@media (max-width:720px){.hwrap{gap:10px 14px;padding:10px 16px}.brand h1{font-size:21px}.brand .yr{display:none}.sync span{display:none}#settingsBtn{padding:6px 10px}}
+
+.btn{border:1px solid var(--line2);background:var(--paper);padding:7px 14px;border-radius:var(--r);cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;line-height:1.3;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--wash);border-color:var(--ink3)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#000}
+.btn.danger{color:var(--red)} .btn.danger:hover{border-color:var(--red);background:var(--red-soft)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn.xs{padding:2px 8px;font-size:12px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--wash)}
+.btn:disabled{opacity:.5;cursor:default}
+.iconbtn{border:0;background:none;cursor:pointer;color:var(--ink3);padding:2px 6px;border-radius:4px;line-height:1}
+.iconbtn:hover{color:var(--ink);background:var(--wash)}
+
+main{max-width:1280px;margin:0 auto;padding:24px 20px 80px}
+section[hidden]{display:none}
+
+/* ---------- alerts ---------- */
+.alert{border:1px solid var(--line);background:var(--paper);border-left:3px solid var(--amber);padding:10px 14px;border-radius:var(--r);margin-bottom:18px;display:flex;gap:12px;align-items:flex-start;font-size:13.5px}
+.alert.red{border-left-color:var(--red)}
+.alert b{font-weight:600}
+.alert ul{margin:4px 0 0;padding-left:18px}
+
+/* ---------- stat strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));border:1px solid var(--line);background:var(--paper);border-radius:var(--r);margin-bottom:22px;overflow:hidden}
+.stat{padding:14px 18px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);font-weight:600}
+.stat .v{font-family:var(--serif);font-size:30px;line-height:1;margin-top:6px}
+.stat .v small{font-family:var(--sans);font-size:12px;color:var(--ink3);margin-left:4px}
+.stat.green .v{color:var(--green)} .stat.amber .v{color:var(--amber)} .stat.red .v{color:var(--red)}
+@media (max-width:640px){.stat{border-bottom:1px solid var(--line)}}
+
+/* ---------- tracker ---------- */
+.track{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+@media (max-width:960px){.track{grid-template-columns:1fr}}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+input[type=search],input[type=text],input[type=number],input[type=date],input[type=time],input[type=url],select,textarea{
+  background:var(--paper);border:1px solid var(--line2);border-radius:var(--r);padding:7px 10px;min-width:0;transition:border-color .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--navy);outline:none;box-shadow:0 0 0 3px var(--navy-soft)}
+.toolbar input[type=search]{flex:1;min-width:180px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:none;padding:6px 12px;cursor:pointer;color:var(--ink2);font-size:13px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);background:var(--paper);border-radius:999px;padding:3px 11px;font-size:12.5px;cursor:pointer;color:var(--ink2)}
+.chip:hover{border-color:var(--ink3)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip .c{color:var(--ink3);margin-left:4px;font-family:var(--mono);font-size:11px}
+.chip[aria-pressed="true"] .c{color:rgba(255,255,255,.7)}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s}
+.card:hover{box-shadow:var(--shadow);border-color:var(--line2)}
+.card.archived{opacity:.6}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card h3{font-size:21px}
+.card .role{color:var(--ink2);font-size:13px;margin-top:2px}
+.stars{color:var(--amber);font-size:12px;letter-spacing:1px}
+.tags{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;letter-spacing:.02em;white-space:nowrap;background:var(--wash);color:var(--ink2)}
+.tag.tier{background:var(--navy-soft);color:var(--navy)}
+.tag.prev{background:var(--plum-soft);color:var(--plum)}
+.tag.ok{background:var(--green-soft);color:var(--green)}
+.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.bad{background:var(--red-soft);color:var(--red)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ink3);vertical-align:middle}
+.dot.offer,.dot.accepted{background:var(--green)} .dot.applied,.dot.oa,.dot.shortlisted,.dot.interview{background:var(--amber)} .dot.rejected,.dot.withdrawn,.dot.ineligible{background:var(--red)}
+.statussel{border:1px solid transparent;background:transparent;padding:2px 4px;border-radius:4px;font-size:12.5px;font-weight:500;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:16px;background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),linear-gradient(135deg,var(--ink3) 50%,transparent 50%);background-position:calc(100% - 9px) 55%,calc(100% - 5px) 55%;background-size:4px 4px;background-repeat:no-repeat}
+.statussel:hover{border-color:var(--line2);background-color:var(--wash)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:13px}
+.kv dt{color:var(--ink3)} .kv dd{margin:0}
+.rounds{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.round{display:grid;grid-template-columns:64px 1fr auto;gap:8px;font-size:12.5px;align-items:baseline}
+.round .d{font-family:var(--mono);color:var(--ink2);font-size:12px}
+.round .r{font-size:11px;font-weight:600}
+.round .r.cleared{color:var(--green)} .round .r.rejected{color:var(--red)} .round .r.pending{color:var(--amber)}
+.rem{font-size:12.5px;background:var(--amber-soft);color:var(--amber);border-radius:var(--r);padding:6px 10px;display:flex;gap:8px;align-items:center}
+.rem.over{background:var(--red-soft);color:var(--red)}
+.rem.done{background:var(--wash);color:var(--ink3);text-decoration:line-through}
+.rem .btn{text-decoration:none}
+.card .notes{font-size:13px;color:var(--ink2);white-space:pre-wrap;border-top:1px solid var(--line);padding-top:8px}
+.card .notes b{color:var(--ink);font-weight:600}
+.card .actions{display:flex;gap:6px;justify-content:flex-end;margin-top:auto;padding-top:4px}
+.empty{text-align:center;padding:56px 20px;color:var(--ink3);border:1px dashed var(--line2);border-radius:var(--r);background:var(--paper)}
+.empty h3{color:var(--ink);font-size:24px;margin-bottom:6px}
+
+/* board */
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{background:var(--wash);border-radius:var(--r);padding:10px;min-height:160px}
+.col h4{font-family:var(--sans);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);font-weight:600;margin:4px 6px 10px;display:flex;justify-content:space-between}
+.col .card{padding:12px;gap:6px}
+.col .card h3{font-size:17px}
+.col .card .kv{font-size:12px}
+
+/* table */
+.tblwrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;background:var(--wash);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:600;cursor:pointer;user-select:none}
+th:hover{color:var(--ink)}
+th.sorted::after{content:" ↓";color:var(--ink)} th.sorted.asc::after{content:" ↑"}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.co td{border-top:1px solid var(--line2)}
+td.co{font-weight:600;white-space:nowrap}
+td.n{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
+td.note{max-width:300px;color:var(--ink2);font-size:12.5px}
+td.note span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+td.note span.open{-webkit-line-clamp:unset;white-space:pre-wrap}
+#myTbl{min-width:900px} #refTbl{min-width:1040px}
+tr.tracked td.co::after{content:"tracked";margin-left:6px;font-size:10px;background:var(--green-soft);color:var(--green);padding:1px 6px;border-radius:999px;font-weight:600}
+tr.inel td.co{color:var(--ink3)}
+
+/* rail */
+.rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 72px)}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel h2{font-size:20px;margin-bottom:10px}
+.ev{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line);align-items:start}
+.ev:first-of-type{border-top:0}
+.ev .d{font-family:var(--mono);font-size:11px;line-height:1.2;color:var(--ink3);text-transform:uppercase}
+.ev .d b{display:block;font-family:var(--serif);font-size:22px;color:var(--ink);font-weight:400}
+.ev .t{font-size:13px;line-height:1.35}
+.ev .t small{display:block;color:var(--ink3);font-size:11.5px;margin-top:1px}
+.ev .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--amber)}
+.ev.over .d b,.ev.over .k{color:var(--red)} .ev.today .d b{color:var(--green)}
+.ev .k.oa{color:var(--navy)} .ev .k.interview,.ev .k.tech,.ev .k.hr{color:var(--plum)} .ev .k.ppt{color:var(--ink3)} .ev .k.deadline{color:var(--red)}
+.railempty{color:var(--ink3);font-size:13px}
+.funnel{display:flex;flex-direction:column;gap:6px}
+.frow{display:grid;grid-template-columns:78px 1fr 28px;gap:8px;align-items:center;font-size:12px}
+.frow .bar{height:8px;background:var(--wash);border-radius:4px;overflow:hidden}
+.frow .bar i{display:block;height:100%;background:var(--navy);border-radius:4px}
+.frow .n{text-align:right;font-family:var(--mono)}
+.policy{font-size:12.5px;color:var(--ink2);line-height:1.5}
+.policy b{color:var(--ink);font-weight:600}
+
+/* ---------- modal ---------- */
+dialog{border:0;border-radius:10px;padding:0;background:var(--paper);color:var(--ink);box-shadow:var(--shadow);width:min(1100px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:hidden}
+dialog::backdrop{background:rgba(28,31,35,.35);backdrop-filter:blur(2px)}
+.mgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);max-height:calc(100vh - 24px)}
+@media (max-width:860px){.mgrid{grid-template-columns:1fr;overflow:auto}}
+.mform{padding:24px 26px;overflow-y:auto;min-height:0;max-height:calc(100vh - 24px);overscroll-behavior:contain}
+.mprev{background:var(--wash);padding:24px;border-left:1px solid var(--line);overflow-y:auto;min-height:0;max-height:calc(100vh - 24px);overscroll-behavior:contain}
+@media (max-width:860px){.mgrid{display:block;overflow-y:auto;max-height:calc(100vh - 24px)}.mprev{border-left:0;border-top:1px solid var(--line)}.mform,.mprev{overflow:visible;max-height:none}.mactions{position:static}}
+.mform h2{font-size:26px;margin-bottom:4px}
+.mform .sub{color:var(--ink3);font-size:13px;margin-bottom:16px}
+.fs{border:0;padding:0;margin:0 0 18px}
+.fs legend{font-family:var(--serif);font-size:18px;padding:0;margin-bottom:8px;display:flex;align-items:center;gap:10px;width:100%}
+.fs legend::after{content:"";flex:1;height:1px;background:var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:560px){.grid2,.grid3{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;position:relative;min-width:0}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:600}
+.field input,.field select,.field textarea{width:100%}
+.field textarea{min-height:64px;resize:vertical}
+.hint{font-size:12px;color:var(--ink3)}
+input[type=file]{border:1px dashed var(--line2);border-radius:var(--r);padding:8px 10px;background:var(--paper);font-size:12.5px;color:var(--ink2);cursor:pointer}
+input[type=file]::file-selector-button{border:1px solid var(--line2);background:var(--wash);border-radius:4px;padding:3px 10px;margin-right:10px;font:inherit;font-size:12px;cursor:pointer}
+.filebox{font-size:12.5px;color:var(--ink2);display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-height:18px}
+.filebox a{font-weight:500}
+.filebox .btn{padding:1px 8px;font-size:11.5px}
+.hint.ok{color:var(--green)} .hint.bad{color:var(--red)}
+.sug{position:absolute;top:100%;left:0;right:0;background:var(--paper);border:1px solid var(--line2);border-radius:var(--r);box-shadow:var(--shadow);z-index:5;max-height:240px;overflow:auto;margin-top:4px}
+.sug button{display:flex;width:100%;text-align:left;border:0;background:none;padding:8px 12px;cursor:pointer;gap:8px;align-items:center;justify-content:space-between}
+.sug button:hover,.sug button.on{background:var(--wash)}
+.pipeline{display:flex;flex-wrap:wrap;gap:5px}
+.pipeline button{border:1px solid var(--line2);background:var(--paper);border-radius:999px;padding:4px 12px;font-size:12.5px;cursor:pointer}
+.pipeline button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pipeline button[aria-pressed="true"].offer,.pipeline button[aria-pressed="true"].accepted{background:var(--green);border-color:var(--green)}
+.pipeline button[aria-pressed="true"].rejected,.pipeline button[aria-pressed="true"].withdrawn,.pipeline button[aria-pressed="true"].ineligible{background:var(--red);border-color:var(--red)}
+.starpick{display:flex;gap:2px}
+.starpick button{border:0;background:none;cursor:pointer;font-size:20px;color:var(--line2);padding:0 2px;line-height:1}
+.starpick button.on{color:var(--amber)}
+.rowlist{display:flex;flex-direction:column;gap:6px}
+.rrow{display:grid;grid-template-columns:120px 118px 80px 100px 1fr 28px;gap:6px;align-items:center}
+.rrow.rem{grid-template-columns:118px 1fr 28px 28px;background:none;padding:0}
+@media (max-width:700px){.rrow{grid-template-columns:1fr 1fr;padding:8px;border:1px solid var(--line);border-radius:var(--r)}.rrow .wide{grid-column:1/-1}}
+.rrow input,.rrow select{padding:5px 8px;font-size:13px}
+.rrow input[type=checkbox]{width:auto;justify-self:center}
+.mactions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--paper);padding-top:12px;border-top:1px solid var(--line)}
+.mprev h2{font-size:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.mprev .nohit{color:var(--ink3);font-size:13px;margin-top:6px}
+.prole{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:10px}
+.prole .ph{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.prole .ph b{font-size:14px;font-weight:600}
+.prole .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px 12px;margin-top:10px}
+.prole .stats div{font-size:11.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.prole .stats div b{display:block;font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;margin-top:1px}
+.prole .pn{font-size:12.5px;color:var(--ink2);margin-top:10px;white-space:pre-wrap;border-top:1px dashed var(--line);padding-top:8px}
+.pmeta{font-size:12.5px;color:var(--ink2);margin-top:10px}
+
+/* ---------- reference ---------- */
+.refhead{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.refhead h2{font-size:30px}
+.refhead p{margin:6px 0 0;color:var(--ink2);max-width:64ch}
+.policybox{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-top:18px;font-size:13px;color:var(--ink2);line-height:1.6}
+.policybox b{color:var(--ink);font-weight:600}
+.policybox h3{font-size:20px;margin-bottom:6px}
+
+/* ---------- settings dialog ---------- */
+.small{width:min(560px,calc(100vw - 24px))}
+.small .mform{padding:24px;max-height:calc(100vh - 24px);overflow-y:auto}
+.small .fs legend{font-size:17px}
+.exportrow{display:flex;gap:8px;flex-wrap:wrap}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;box-shadow:var(--shadow);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center}
+.toast.show{opacity:1;pointer-events:auto}
+.toast button{border:0;background:none;color:#fff;text-decoration:underline;cursor:pointer;padding:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{header,.toolbar,.rail,.actions,.btn{display:none!important}.track{grid-template-columns:1fr}body{background:#fff}}
+</style>
+
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>Placement <em>Tracker</em></h1><span class="yr">Batch of 2027 · PESU</span></div>
+    <nav aria-label="Views">
+      <button data-view="tracker" aria-current="page">My tracker</button>
+      <button data-view="ref">2026 reference</button>
+    </nav>
+    <div class="hspacer"></div>
+    <span class="sync" id="sync"><i></i><span>Connecting…</span></span>
+    <button class="btn ghost" id="settingsBtn" title="Profile, backup and import">Profile &amp; backup</button>
+    <button class="btn ghost" id="signOutBtn" hidden>Sign out</button>
+    <button class="btn primary" id="addBtn">+ Add company</button>
+  </div>
+</header>
+
+<main>
+<section id="v-tracker">
+  <div id="alerts"></div>
+  <div class="strip" id="strip"></div>
+  <div class="track">
+    <div>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Search company, role, notes…" aria-label="Search my tracker">
+        <div class="seg" id="modeSeg" role="group" aria-label="Layout">
+          <button data-m="cards" aria-pressed="true">Cards</button><button data-m="board" aria-pressed="false">Board</button><button data-m="table" aria-pressed="false">Table</button>
+        </div>
+        <select id="sort" aria-label="Sort">
+          <option value="next">Sort: next date</option>
+          <option value="updated">Sort: recently updated</option>
+          <option value="priority">Sort: priority</option>
+          <option value="ctc">Sort: CTC high → low</option>
+          <option value="name">Sort: company A → Z</option>
+        </select>
+        <label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="showArch"> Show archived</label>
+      </div>
+      <div class="chips" id="statusChips" style="margin-bottom:14px"></div>
+      <div id="listArea"></div>
+    </div>
+    <aside class="rail">
+      <div class="panel"><h2>Coming up</h2><div id="events"></div></div>
+      <div class="panel"><h2>Funnel</h2><div class="funnel" id="funnel"></div></div>
+      <div class="panel"><h2>Offer policy</h2><div class="policy" id="policyCheck"></div></div>
+    </aside>
+  </div>
+</section>
+
+<section id="v-ref" hidden>
+  <div class="refhead">
+    <div>
+      <h2>How the 2026 batch went</h2>
+      <p>Every company that visited for the graduating batch of 2026 (Aug 2025 – Feb 2026; sheet last updated mid Nov 2025). Compensation in LPA, stipend per month. Click a note to expand it; <b>Track</b> adds the company to your tracker with these numbers pre-filled. Greyed-out rows didn't list your branch.</p>
+    </div>
+  </div>
+  <div class="strip" id="refStrip"></div>
+  <div class="toolbar">
+    <input type="search" id="rq" placeholder="Search company, role, note…" aria-label="Search reference">
+    <div class="chips" id="tierChips"></div>
+    <select id="branchSel" aria-label="Branch"><option value="">All branches</option><option>CSE</option><option>AIML</option><option>ECE</option><option>EEE</option><option>MECH</option><option>BT</option></select>
+    <label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="hideTracked"> Hide already tracked</label>
+  </div>
+  <div class="tblwrap"><table id="refTbl">
+    <thead><tr><th>Company</th><th>Tier</th><th>Role</th><th>Branches</th><th>Stipend</th><th>Base</th><th>CTC</th><th>OA</th><th>Interview</th><th>PPT</th><th>Placed</th><th>GPA</th><th>Note</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="policybox" id="policyText"></div>
+</section>
+</main>
+
+<!-- add / edit -->
+<dialog id="dlg">
+  <div class="mgrid">
+    <form class="mform" id="form" method="dialog" autocomplete="off" novalidate>
+      <h2 id="dlgTitle">Add a company</h2>
+      <div class="sub" id="dlgSub">Start with the name — if they came last year, everything fills in.</div>
+      <input type="hidden" id="f-id">
+
+      <fieldset class="fs"><legend>Company &amp; role</legend>
+        <div class="field">
+          <label for="f-company">Company</label>
+          <input id="f-company" type="text" required placeholder="Start typing…">
+          <div class="sug" id="sug" hidden></div>
+          <div class="hint" id="dupHint" hidden></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label for="f-role">Role</label><input id="f-role" type="text" list="roleList" placeholder="SDE, Data Scientist…"><datalist id="roleList"></datalist></div>
+          <div class="field"><label for="f-tier">Tier</label>
+            <select id="f-tier"><option value="">—</option><option>Tier 1</option><option>Tier 2</option><option>Tier 3</option><option>Internship Only</option><option>Summer PPO</option></select></div>
+          <div class="field"><label for="f-jobtype">Offer type</label>
+            <select id="f-jobtype"><option value="">—</option><option value="FTE">FTE</option><option value="Intern">Internship</option><option value="Intern + FTE">Intern + FTE</option><option value="PPO">Internship with PPO</option></select></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label for="f-location">Location</label><input id="f-location" type="text" placeholder="Bengaluru"></div>
+          <div class="field"><label for="f-link">Portal / JD link</label><input id="f-link" type="url" placeholder="https://"></div>
+          <div class="field"><label>Priority</label><div class="starpick" id="starpick"><button type="button" data-v="1">★</button><button type="button" data-v="2">★</button><button type="button" data-v="3">★</button></div><input type="hidden" id="f-priority" value="0"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="fs"><legend>Pay &amp; eligibility</legend>
+        <div class="grid3">
+          <div class="field"><label for="f-stipend">Stipend ₹/month</label><input id="f-stipend" type="number" min="0" step="500"></div>
+          <div class="field"><label for="f-base">Base LPA</label><input id="f-base" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="f-ctc">CTC LPA</label><input id="f-ctc" type="number" min="0" step="0.01"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label for="f-branches">Eligible branches</label><input id="f-branches" type="text" placeholder="CSE, AIML"></div>
+          <div class="field"><label for="f-gpa">CGPA cutoff</label><input id="f-gpa" type="text" placeholder="8.0"></div>
+          <div class="field"><label for="f-deadline">Apply by</label><input id="f-deadline" type="date"></div>
+        </div>
+        <div class="hint" id="eligHint"></div>
+      </fieldset>
+
+      <fieldset class="fs"><legend>Status</legend>
+        <div class="pipeline" id="pipeline"></div><input type="hidden" id="f-status" value="notapplied">
+        <div class="field" style="margin-top:10px"><label for="f-outcome">Latest update</label><textarea id="f-outcome" placeholder="What's the current situation? e.g. OA cleared, shortlist expected Friday · Rejected after R2, feedback: system design"></textarea></div>
+      </fieldset>
+
+      <fieldset class="fs"><legend>Rounds <button type="button" class="btn xs" id="addRound" style="margin-left:auto">+ Add round</button></legend>
+        <div class="rowlist" id="rounds"></div>
+        <div class="hint" id="roundsHint">Log each stage as it happens: PPT, application, OA, technical rounds, HR, offer.</div>
+      </fieldset>
+
+      <fieldset class="fs"><legend>Reminders <button type="button" class="btn xs" id="addRem" style="margin-left:auto">+ Add reminder</button></legend>
+        <div class="rowlist" id="rems"></div>
+      </fieldset>
+
+      <fieldset class="fs" id="offerFs"><legend>Offer</legend>
+        <div class="grid3">
+          <div class="field"><label for="f-offerctc">Offered CTC</label><input id="f-offerctc" type="number" min="0" step="0.01" placeholder="LPA"></div>
+          <div class="field"><label for="f-offerby">Accept by</label><input id="f-offerby" type="date"></div>
+          <div class="field"><label for="f-accepted">Decision</label><select id="f-accepted"><option value="">Pending</option><option value="yes">Accepted</option><option value="no">Declined</option></select></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="fs"><legend>Notes</legend>
+        <div class="grid2">
+          <div class="field"><label for="f-resume">Resume used (PDF)</label>
+            <input id="f-resume" type="file" accept="application/pdf,.pdf">
+            <div class="filebox" id="resumeBox"></div></div>
+          <div class="field"><label for="f-contact">Contact / HR / referral</label><input id="f-contact" type="text" placeholder="Name, email"></div>
+        </div>
+        <div class="field"><label for="f-notes">Personal notes</label><textarea id="f-notes" placeholder="Prep topics, questions asked, seniors to ask, gut feeling…"></textarea></div>
+        <label class="hint" style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="f-archived"> Archive (hide from the main list)</label>
+      </fieldset>
+
+      <div class="mactions">
+        <button type="button" class="btn danger" id="delBtn" hidden>Delete</button>
+        <span style="flex:1"></span>
+        <button type="button" class="btn" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn primary" id="saveBtn">Save</button>
+      </div>
+    </form>
+    <aside class="mprev" id="mprev" aria-live="polite"></aside>
+  </div>
+</dialog>
+
+<!-- settings -->
+<dialog id="sdlg" class="small">
+  <form class="mform" id="sform" method="dialog">
+    <h2>Profile &amp; backup</h2>
+    <div class="sub">Your branch and CGPA power the eligibility checks. Nothing here is shared.</div>
+    <fieldset class="fs"><legend>About you</legend>
+      <div class="grid3">
+        <div class="field"><label for="s-name">Name</label><input id="s-name" type="text"></div>
+        <div class="field"><label for="s-branch">Branch</label><select id="s-branch"><option value="">—</option><option>CSE</option><option>AIML</option><option>ECE</option><option>EEE</option><option>MECH</option><option>BT</option></select></div>
+        <div class="field"><label for="s-cgpa">CGPA</label><input id="s-cgpa" type="number" min="0" max="10" step="0.01"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-target">Target CTC (LPA)</label><input id="s-target" type="number" min="0" step="0.5"></div>
+        <div class="field"><label for="s-tenth">10th / 12th %</label><input id="s-tenth" type="text" placeholder="92 / 90"></div>
+      </div>
+    </fieldset>
+    <fieldset class="fs"><legend>Backup</legend>
+      <div class="exportrow">
+        <button type="button" class="btn" id="expJson">Export JSON</button>
+        <button type="button" class="btn" id="expCsv">Export CSV</button>
+        <button type="button" class="btn" id="impBtn">Import JSON…</button>
+        <input type="file" id="impFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="hint" style="margin-top:8px">Export regularly if you're running this outside claude.ai — there the data lives in this browser only. Import merges by company + role and keeps the newer copy.</div>
+    </fieldset>
+    <div class="mactions"><button type="button" class="btn" id="sCancel">Cancel</button><button type="submit" class="btn primary">Save profile</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<!-- sign in (only used when Supabase is configured) -->
+<dialog id="adlg" class="small">
+  <form class="mform" id="aform" method="dialog">
+    <h2>Sign in</h2>
+    <div class="sub">Your tracker syncs to your own Supabase project. Use the same email on every device.</div>
+    <div class="field"><label for="a-email">Email</label><input id="a-email" type="text" inputmode="email" autocomplete="username" required></div>
+    <div class="field"><label for="a-pass">Password</label><input id="a-pass" type="password" autocomplete="current-password" required minlength="6"></div>
+    <div class="hint" id="a-msg" style="min-height:18px"></div>
+    <div class="mactions" style="border:0;padding-top:4px"><button type="button" class="btn" id="a-signup">Create account</button><button type="submit" class="btn primary">Sign in</button></div>
+  </form>
+</dialog>
+
+<script>
+// ===================== DEPLOY CONFIG =====================
+// To sync across devices on your own deployment, create a free
+// Supabase project and paste its URL and anon (public) key here.
+// Leave both empty to keep data in this browser only.
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+// =========================================================
+const PREV = {"stats":{"note":"Sheet last updated ~mid Nov 2025; placements ran 01 Aug 2025 onward","tiers":{"Tier 1":{"visited":103,"placed":555,"highCTC":60,"avgCTC":20.9,"medCTC":18,"highBase":26,"avgBase":14.95,"medBase":14},"Tier 2":{"visited":61,"placed":332,"highCTC":11.92,"avgCTC":8.53,"medCTC":8.25,"highBase":10,"avgBase":7.37,"medBase":7.5},"Tier 3":{"visited":24,"placed":100,"highCTC":6,"avgCTC":4.62,"medCTC":4.5},"Internship Only":{"visited":95,"placed":184,"highStipend":110000,"avgStipend":39380,"medStipend":35000},"Summer PPO":{"visited":14,"placed":72,"highCTC":45,"avgCTC":27.89,"medCTC":27}},"overall":{"companies":297,"placed":1243,"highCTC":60,"avgCTC":14.9,"medCTC":12,"byBranch":{"CSE":131,"AIML":127,"ECE":65,"EEE":49,"Mech/BT":23}},"guidelines":"Tier 1: CTC 12–60 LPA · Tier 2: 6–12 LPA · Tier 3: 3–6 LPA. Dream Tier (60+) applied to 2025 batch only.","policy":"A student can hold at most 1 internship and 2 FTE offers. If you get only an FTE offer in Tier 2 or Tier 3, you are eligible for only one more offer in a higher tier (not the same tier). If you get an internship offer from any tier, you are eligible only for FTE offers in the next tier up (a Tier 1 internship means no more offers). Same rules apply to summer-internship PPOs and any offer needing college consent."},"companies":[{"company":"Meesho","tier":"Tier 1","roles":[{"role":"Data Scientist","branches":"CSE, AIML","stipend":150000,"base":24,"ctc":60,"oa":"04/08/25","interview":"04/08/25","ppt":"03/08/25","placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":9,"note":"All the extra money in CTC is majorly retention bonus over a period of 4-5 years"},{"role":"SDE","branches":null,"stipend":130000,"base":22,"ctc":57,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":8.5,"note":null},{"role":"Business Analyst","branches":null,"stipend":70000,"base":14,"ctc":23.5,"oa":"18/08/25","interview":"18/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":6,"gpa":8,"note":null}],"branches":"CSE, AIML"},{"company":"Eternal(Zomato)","tier":"Tier 1","roles":[{"role":"SDE I","branches":"CSE, AIML","stipend":100000,"base":24,"ctc":56,"oa":"06/08/25","interview":"06/08/25","ppt":"06/08/25","placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":"8(+ Resume)","note":"Same for this also"}],"branches":"CSE, AIML"},{"company":"Flipkart","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":100000,"base":18,"ctc":32.58,"oa":"05/08/25","interview":"07/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Make My Trip","tier":"Tier 1","roles":[{"role":"SWE","branches":"CSE, AIML","stipend":50000,"base":12,"ctc":22,"oa":"03/08/25","interview":"08/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"ION Group","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":"-","base":15,"ctc":17.3,"oa":null,"interview":null,"ppt":"24/07/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"263 hired last yr in total by the company, not only PESU"},{"role":"Data Scientist","branches":null,"stipend":"-","base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Yet to even come to campus"},{"role":"Tech Analyst","branches":null,"stipend":"-","base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Schnieder","tier":"Tier 1","roles":[{"role":"Mutliple roles, same CTC","branches":"CSE, AIML, ECE","stipend":35000,"base":9,"ctc":12,"oa":"01/08/25","interview":"12/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":11,"gpa":8,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Vyapar Apps","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":40000,"base":14,"ctc":24,"oa":"08/08/25","interview":"13/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":8,"gpa":8.5,"note":"CTC Inclusive of JB & Stocks"},{"role":"Data Scientist","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Couchbase","tier":"Tier 1","roles":[{"role":"Dev->Server,Devx,SRE     \nSupport & QE","branches":"CSE, AIML","stipend":125000,"base":22,"ctc":32.48,"oa":"No OA","interview":"08/08/25","ppt":null,"placedIntern":17,"placedFTE":null,"placedBoth":null,"gpa":"Resume Based","note":"Shortlisted(102 students) 8.5 + CGPA with Excellent projects / open source contributions. Has performance based conversion."}],"branches":"CSE, AIML"},{"company":"NetCore","tier":"Tier 1","roles":[{"role":"AIML/Platform Engineer","branches":"CSE, AIML, ECE","stipend":30000,"base":14.4,"ctc":29.5,"oa":"09/08/25","interview":"09/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":8,"note":null},{"role":"SDE","branches":null,"stipend":30000,"base":12.6,"ctc":23.375,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":null},{"role":"Business Analyst","branches":null,"stipend":30000,"base":9,"ctc":17.25,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Komprise","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":50000,"base":17.41,"ctc":22,"oa":"09/08/25","interview":"11/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":null,"note":null},{"role":"Software Test Engineer","branches":null,"stipend":50000,"base":15.54,"ctc":20,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Titan Email","tier":"Tier 1","roles":[{"role":"Intern","branches":"CSE, AIML","stipend":100000,"base":18,"ctc":22,"oa":"12/08/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":null,"note":"Internship only. Conversion based on performance"}],"branches":"CSE, AIML"},{"company":"Arctic Wolf","tier":"Tier 1","roles":[{"role":"Developer","branches":"CSE, AIML, ECE","stipend":60000,"base":21,"ctc":22.05,"oa":"No OA","interview":"23/08/2025","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":"-> CyberSec based role - PBC FTE\n-> Interviews were at their office\n-> shortlisted 14 people based on \nleetcode ques, resume, github and cf"}],"branches":"CSE, AIML, ECE"},{"company":"Greenlight","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":50000,"base":20,"ctc":25,"oa":"11/08/25","interview":"11/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":9.1,"note":null}],"branches":"CSE, AIML"},{"company":"CBXI","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":null,"base":21,"ctc":40,"oa":"09/08/25","interview":"10/08/25","ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":1,"gpa":9,"note":null}],"branches":"CSE, AIML"},{"company":"Cvent","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":40000,"base":null,"ctc":15.03,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":8.5,"note":null}],"branches":"CSE, AIML"},{"company":"StockX","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":60000,"base":20,"ctc":22.6,"oa":"22/08/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":9.01,"note":"Didnt shortlist everyone above 9 (took ppl who had previous internship experience)"}],"branches":"CSE, AIML"},{"company":"Dover","tier":"Tier 1","roles":[{"role":"Associate SE","branches":"CSE, AIML","stipend":25000,"base":null,"ctc":14,"oa":"18/08/25","interview":"21/08/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":8,"note":null}],"branches":"CSE, AIML"},{"company":"IDFC Bank","tier":"Tier 1","roles":[{"role":"Application Engineer","branches":"CSE, AIML","stipend":40000,"base":14,"ctc":18,"oa":"21/08/25","interview":"28/08/25","ppt":"18/08/25","placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":"16 CTC + 15% variable"}],"branches":"CSE, AIML"},{"company":"Bain","tier":"Tier 1","roles":[{"role":"Analyst Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":45000,"base":9.9,"ctc":15.684,"oa":"19/08/25","interview":"20/08/25","ppt":null,"placedIntern":12,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Coming only for Internship, conversion based on performance"}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"HSBC","tier":"Tier 1","roles":[{"role":"Trainee S/W","branches":"CSE, AIML","stipend":50000,"base":null,"ctc":16,"oa":"26/08/25","interview":"03/09/25","ppt":"26/08/25","placedIntern":null,"placedFTE":null,"placedBoth":20,"gpa":null,"note":"Came for Summer Internship for 5th Sem as well. Only FTE for 4th years"},{"role":null,"branches":"CSE, AIML","stipend":null,"base":null,"ctc":null,"oa":null,"interview":"19/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":20,"gpa":null,"note":"Shortlisted students for the interview from the initial list itself and recruited. No separate OA again.\nLocation is Pune"}],"branches":"CSE, AIML"},{"company":"Lam Research","tier":"Tier 1","roles":[{"role":"Electrical Engineer","branches":"ECE, EEE","stipend":52000,"base":null,"ctc":21.4,"oa":"19/08/25","interview":"25/08/25","ppt":"19/08/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"SDE & QA","branches":"CSE, AIML, ECE, EEE, MECH","stipend":null,"base":null,"ctc":22.17,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":"Req. was embedded design coding for CS"},{"role":"Mech","branches":"MECH","stipend":null,"base":null,"ctc":15.81,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":"ECE, EEE"},{"company":"Tekion","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":65000,"base":20,"ctc":22,"oa":"23/08/25","interview":"23/08/25","ppt":"23/08/25","placedIntern":null,"placedFTE":null,"placedBoth":10,"gpa":8.75,"note":"Additional ESOPs (2000 units at 9.3$ per unit)"}],"branches":"CSE, AIML"},{"company":"American Express","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":125000,"base":14.28,"ctc":20,"oa":"23/08/25","interview":"26/08/25","ppt":"22/08/25","placedIntern":null,"placedFTE":null,"placedBoth":6,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"AMD","tier":"Tier 1","roles":[{"role":"COOP","branches":"CSE, AIML, ECE, EEE","stipend":40000,"base":12.38,"ctc":19.09,"oa":"25/08/25","interview":"02/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":9,"note":"Includes 15000$ RSUs vested 4 years (Hired 2CS + 1ECE)"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Apple","tier":"Tier 1","roles":[{"role":"IS&T Dev","branches":"CSE, AIML, ECE, EEE","stipend":105000,"base":null,"ctc":null,"oa":"03/09/25","interview":"22/09/25 - 24/09/25","ppt":null,"placedIntern":16,"placedFTE":null,"placedBoth":null,"gpa":7,"note":"OA (Coderpad)"},{"role":"Wireless Tech (WTE)","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":null,"gpa":"Most of them who were shortlisted had 8.75+ with some exceptions","note":"Resume Based Shortlisting"},{"role":"BPR OPS SDE","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":null,"interview":"13/10/25 - 15/10/25","ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"BPR OPS ML","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":null,"interview":"13/10/25 - 15/10/25","ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Applied Research - Apple Care","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"GoTo","tier":"Tier 1","roles":[{"role":"Associate Software Engineer","branches":"CSE, AIML, ECE, EEE","stipend":50000,"base":14,"ctc":18,"oa":"10/09/25","interview":"10/09/25","ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":3,"gpa":8.5,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Sixt","tier":"Tier 1","roles":[{"role":"Site Reliability Engineer","branches":"CSE, AIML","stipend":50000,"base":null,"ctc":20.7,"oa":"01/09/25","interview":"01/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":8.5,"note":"SRE Eligible only for AIML Students"},{"role":"Software Dev Eng","branches":null,"stipend":null,"base":13,"ctc":21.3,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":9,"note":"SDE Eligible only for CSE Students"}],"branches":"CSE, AIML"},{"company":"Cynlr","tier":"Tier 1","roles":[{"role":"2 skills met","branches":null,"stipend":30000,"base":8,"ctc":"Base + PF + ESOPs","oa":"27/08/25","interview":"30/09/25","ppt":"25/08/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Hiring for CSE,ECE,EEE"},{"role":"4 skills met","branches":null,"stipend":null,"base":16,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"The interviews for this happened at MSRIT, no info abt final select"},{"role":"4+ skills met","branches":null,"stipend":null,"base":25,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"GE Health Care","tier":"Tier 1","roles":[{"role":"Edison Engineering Development Program - CS","branches":null,"stipend":40000,"base":13,"ctc":16.2,"oa":"06/09/25","interview":"11/09/25","ppt":"05/09/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Hiring included M.Tech students as well"},{"role":"Edison Engineering Development Program - Non CS","branches":null,"stipend":null,"base":null,"ctc":9.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"CommVault","tier":"Tier 1","roles":[{"role":"Software Dev Eng","branches":"CSE, AIML","stipend":50000,"base":16,"ctc":33,"oa":"01/09/25","interview":null,"ppt":"28/08/25","placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":8.56,"note":"Coming only for Internship, but also has performance based FTE conversion"}],"branches":"CSE, AIML"},{"company":"Arista Networks","tier":"Tier 1","roles":[{"role":"SDE","branches":null,"stipend":65000,"base":15,"ctc":30.33,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Have come for both FTE & Summer Internship.      + Includes RSUs Worth 12000$"}],"branches":null},{"company":"SAP","tier":"Tier 1","roles":[{"role":"Technology Hiring","branches":"CSE, AIML","stipend":null,"base":10.5,"ctc":26,"oa":"02/09/25","interview":"04/09/25","ppt":"02/09/25","placedIntern":null,"placedFTE":null,"placedBoth":9,"gpa":null,"note":"3.5L Joining Bonus will be paid in 2 installments over a period of 2 years.\n4L Restricted Stock Units (RSUs) vest quarterly over three years after an initial six-month waiting period, with payouts made quarterly thereafter.\n8L Benefits include - Free Meals provided on campus, Free Transport for office commute, Relocation , Life Events (Birthday Gift), OwnSAP ,Wellness Cover for Employee, Higher Education Policy."},{"role":"Technical/Development Consultant Hiring","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":10,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Wayfair","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":75000,"base":23,"ctc":26,"oa":"22/10/25","interview":"03/11/25","ppt":"28/08/25","placedIntern":5,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Only for internship but has performance based conversion."}],"branches":"CSE, AIML"},{"company":"IBM (ISDL)","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML, ECE, EEE","stipend":30000,"base":17,"ctc":18.5,"oa":"05/09/25","interview":"12/09/25","ppt":"05/09/25","placedIntern":3,"placedFTE":null,"placedBoth":14,"gpa":null,"note":"Additional Rs 25k INR Relocation - one Time pay"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"IBM (ISL)","tier":"Tier 1","roles":[{"role":"Software Developer","branches":null,"stipend":30000,"base":17,"ctc":18.5,"oa":"21/09/25","interview":"27/09/25","ppt":"20/09/25","placedIntern":null,"placedFTE":null,"placedBoth":88,"gpa":8,"note":null}],"branches":null},{"company":"IBM (CIO)","tier":"Tier 1","roles":[{"role":"Data Analyst / Cloud","branches":null,"stipend":30000,"base":17,"ctc":18.5,"oa":"16/10/25","interview":"29/10/25 - 30/10/25","ppt":"16/10/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Uber","tier":"Tier 1","roles":[{"role":"SWE","branches":"CSE, AIML","stipend":null,"base":null,"ctc":null,"oa":"03/09/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Hyperface","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":null,"base":12,"ctc":20,"oa":"08/09/25","interview":"09/08/25","ppt":null,"placedIntern":4,"placedFTE":null,"placedBoth":2,"gpa":null,"note":"2L joining bonus, 6L ESOP's"}],"branches":"CSE, AIML, ECE"},{"company":"Cloudera","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":45000,"base":17,"ctc":19,"oa":"08/09/25","interview":"09/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":10,"gpa":"8.91 +  \n(10th &12th >  90)","note":"2433308 is the total compensation post additional reimbursements only + Possible Additional ESOPs (1600 units at 18$ vested 4 years)"}],"branches":"CSE, AIML"},{"company":"Walmart Labs","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":100000,"base":18.34,"ctc":26,"oa":"07/09/25","interview":"09/09/25","ppt":"09/09/25","placedIntern":1,"placedFTE":null,"placedBoth":4,"gpa":9,"note":"Annual Fixed Pay: 1,834,000\nTarget Annual Incentive Amount: 1,75,000\nTarget Total Cash: 2,009,000\n\nJoining Bonus: 2,00,000\nNew Hire RSU’s: 4,00,000"}],"branches":"CSE, AIML"},{"company":"Walmart Global Tech","tier":"Tier 1","roles":[{"role":"Cybersecurity (Internship)","branches":"CSE, AIML","stipend":100000,"base":18.34,"ctc":26,"oa":"24/09/25","interview":"13/10/25","ppt":null,"placedIntern":5,"placedFTE":null,"placedBoth":null,"gpa":9.1,"note":"Same"}],"branches":"CSE, AIML"},{"company":"Pure Storage","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":100000,"base":26,"ctc":53,"oa":"09/09/25","interview":"11/09/25","ppt":null,"placedIntern":10,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Hiring for Internship only. Has performance based conversion"}],"branches":"CSE, AIML"},{"company":"Kickdrum","tier":"Tier 1","roles":[{"role":"Software Developer","branches":"CSE, AIML","stipend":35000,"base":10,"ctc":15.73,"oa":"11/09/25","interview":"13/09/25","ppt":"09/09/25","placedIntern":null,"placedFTE":null,"placedBoth":7,"gpa":null,"note":"10 LPA (Fixed) + 1 Lakh (Variable) + 3\nLakhs (Special Bonus) + 1.73 LPA (Benefits,\nretirals)"}],"branches":"CSE, AIML"},{"company":"Netradyne","tier":"Tier 1","roles":[{"role":"Associate Software Engineer - Device","branches":"CSE, AIML, ECE, EEE","stipend":30000,"base":10,"ctc":14,"oa":"03/11/25","interview":"05/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":7.5,"note":"3DB + 1JB"},{"role":"Associate Software Engineer - Business Systems","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null},{"role":"Associate Database Administrator - Cloud","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Super Money","tier":"Tier 1","roles":[{"role":"SDE - 1","branches":"CSE, AIML","stipend":100000,"base":18,"ctc":19.8,"oa":"12/09/25","interview":"15/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":8.5,"note":"Did not come to PES directly. Drive at IISc for which students of PES were also invited\n(Other colleges - rvce,IIIT blr ,IIT Tirupati,IIT Dharwad and NMIT)\n2 out of the 4 who got offer were from PES"}],"branches":"CSE, AIML"},{"company":"Dish Networks","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":null,"oa":"15/09/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"AppLogic(SandVine)","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":null,"base":13,"ctc":15.5,"oa":"16/09/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":8.99,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Natwest","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":null,"base":null,"ctc":15,"oa":"16/09/25","interview":"19/09/25","ppt":null,"placedIntern":null,"placedFTE":5,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Egnyte","tier":"Tier 1","roles":[{"role":"Junior Software Engineer","branches":"CSE, AIML, ECE","stipend":50000,"base":13,"ctc":14,"oa":"18/09/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":"Fully remote job"}],"branches":"CSE, AIML, ECE"},{"company":"Oracle(OFSS)","tier":"Tier 1","roles":[{"role":"Associate Application Developer","branches":null,"stipend":50000,"base":15.23,"ctc":21.36,"oa":"20/09/25","interview":"26/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"USD 16000 additional over the CTC. Variable compensation provided at company's discretion at the time of joining"}],"branches":null},{"company":"NewRelic","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":null,"base":16,"ctc":19,"oa":"19/09/25","interview":"22/09/25","ppt":null,"placedIntern":null,"placedFTE":5,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Confluent","tier":"Tier 1","roles":[{"role":"Software Engineer - Intern","branches":null,"stipend":110000,"base":33.5,"ctc":50,"oa":"22/09/25","interview":"25/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":null,"note":"USD 40000 additional RSU vested over 2 years."}],"branches":null},{"company":"GameBerry","tier":"Tier 1","roles":[{"role":"SDE","branches":"CSE, AIML","stipend":50000,"base":15,"ctc":17.85,"oa":"21/09/25","interview":"22/09/25","ppt":"22/09/25","placedIntern":null,"placedFTE":null,"placedBoth":6,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Guidewire","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":70000,"base":null,"ctc":null,"oa":null,"interview":"1st round - 07/10/2025\n2nd rund - 11/10/2025","ppt":"22/09/25","placedIntern":5,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Societe General","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":35000,"base":11,"ctc":12.21,"oa":null,"interview":"23/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":11,"gpa":null,"note":null},{"role":"Data Science","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Cybersecurity Analyst","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Commonwealth Bank of Australia","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":null,"base":10.56,"ctc":12.35,"oa":"25/09/25","interview":"30/09/25","ppt":null,"placedIntern":null,"placedFTE":15,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Nvidia","tier":"Tier 1","roles":[{"role":"Software Engineer Intern","branches":"CSE, AIML, ECE, EEE","stipend":80000,"base":null,"ctc":33.46,"oa":"24/09/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":"CTC inclusive of equity"},{"role":"Hardware Engineer Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Epsilon","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":30000,"base":11.2,"ctc":12,"oa":null,"interview":"30/09/25","ppt":"29/09/25","placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Philips","tier":"Tier 1","roles":[{"role":"Software Intern","branches":"CSE, AIML","stipend":45000,"base":11.5,"ctc":14.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"CyberSecurity","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"HPE","tier":"Tier 1","roles":[{"role":"IT Solution Mgr","branches":"CSE, AIML","stipend":40000,"base":null,"ctc":12,"oa":"30/09/25","interview":"06/10/25","ppt":"06/10/25","placedIntern":null,"placedFTE":2,"placedBoth":13,"gpa":null,"note":"Base varies from 12-14 based on specific roles\nEg SWE 12.5 , ML roles 14 , testing 12"},{"role":"Data Analytics","branches":null,"stipend":40000,"base":null,"ctc":17.5,"oa":"04/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":"Only students who have done projects in PowerBI or have completed an internship are eligible"}],"branches":"CSE, AIML"},{"company":"HPE (Juniper)","tier":"Tier 1","roles":[{"role":"COO","branches":"CSE, AIML","stipend":40000,"base":12,"ctc":17.5,"oa":"30/10/25","interview":null,"ppt":null,"placedIntern":6,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"MIST (AIDE)","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Dezerv","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE","stipend":75000,"base":15,"ctc":22.5,"oa":"08/10/25","interview":"09/10/25","ppt":"08/10/25","placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":"CTC inclusive of ESOPs worth 2.5 lakhs\n\nOA was not DSA round . They asked to build components in full stack application using React , NodeJS and MongoDB in 1.5hr."}],"branches":"CSE"},{"company":"Razorpay","tier":"Tier 1","roles":[{"role":"SDE - Backend","branches":"CSE, AIML","stipend":75000,"base":18,"ctc":35,"oa":"12/10/25","interview":null,"ppt":null,"placedIntern":1,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"CTC inclusive of ESOPs worth 15 lakhs + \n2 Joining Bonus"},{"role":"Data Engineer","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Frontend Engineering Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Boomi Software","tier":"Tier 1","roles":[{"role":"Software Engineering Intern","branches":"CSE, AIML","stipend":40000,"base":null,"ctc":14,"oa":"11/10/25","interview":null,"ppt":"11/10/25","placedIntern":4,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Inmobi","tier":"Tier 1","roles":[{"role":"Software Development Engineer","branches":"CSE, AIML","stipend":55000,"base":24,"ctc":39,"oa":"10/10/25","interview":"11/10/25","ppt":"10/10/25","placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":"24 is bascially the CTC, the remaining amnt is the bonus over 3 years"}],"branches":"CSE, AIML"},{"company":"Netapp","tier":"Tier 1","roles":[{"role":"MTS Intern - QA","branches":"CSE, AIML","stipend":50000,"base":18,"ctc":21,"oa":"04/10/25","interview":"10/10/25","ppt":null,"placedIntern":1,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Interview was at Netapp Office (Blr- Hoodi) \nPESU (2) => 1 B.tech + 1 M.tech (PBC)\n RVCE (2) => 1 B.tech + 1 M.tech (PBC)"}],"branches":"CSE, AIML"},{"company":"Baxter","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML","stipend":30000,"base":9.9,"ctc":12,"oa":"24/10/25","interview":"24/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"eLitmus","tier":"Tier 1","roles":[{"role":"Software Developer","branches":"CSE, AIML","stipend":null,"base":null,"ctc":12,"oa":"30/10/25","interview":"30/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Aveva","tier":"Tier 1","roles":[{"role":null,"branches":"CSE","stipend":50000,"base":16.3,"ctc":19,"oa":"14/10/25","interview":"15/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":"Job Location Hyderabad"}],"branches":"CSE"},{"company":"4GoodAI","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":12,"oa":"11/10/25","interview":"12/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":6,"gpa":null,"note":null}],"branches":null},{"company":"RELX Group","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":null,"stipend":null,"base":8.93,"ctc":13.19,"oa":"18/11/25","interview":null,"ppt":"25/10/25","placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Full Time Role only. Hire at 8,93,520 and as part of accelerated compensation the compensation can go up to 13,19,840 within a year"}],"branches":null},{"company":"ZS Associates","tier":"Tier 1","roles":[{"role":"Business Technology Solutions Associate","branches":null,"stipend":null,"base":9,"ctc":14.15,"oa":"25/11/25","interview":"30/11/25","ppt":null,"placedIntern":null,"placedFTE":17,"placedBoth":null,"gpa":null,"note":"Apart from given CTC, this is an entire section for medical insurance given separately"}],"branches":null},{"company":"Mysa","tier":"Tier 1","roles":[{"role":"Software Engineer Intern","branches":null,"stipend":60000,"base":15,"ctc":20,"oa":"No OA","interview":"24/10/25","ppt":null,"placedIntern":1,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Coming only for internship. Has PBC"}],"branches":null},{"company":"Ather Energy","tier":"Tier 1","roles":[{"role":"GET Product Mgmt","branches":null,"stipend":30000,"base":null,"ctc":15,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null},{"role":"GET Application Developer","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"GET FrontEnd","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null},{"role":"GET Circuits Team","branches":null,"stipend":null,"base":null,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"GET Hardware Peripherals","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"GET System Engineer","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":null},{"company":"Thorogood","tier":"Tier 1","roles":[{"role":"Data & AI Consultant","branches":null,"stipend":45000,"base":10,"ctc":14.81,"oa":"03/11/25","interview":"05/11/25","ppt":null,"placedIntern":2,"placedFTE":1,"placedBoth":2,"gpa":null,"note":"After shortlisted interview they had offline drive \nat office on 7/11/2025. It had 4 rounds\n1st time - 4 (2 Both + 2 Intern)\n2nd time - 1 (FTE)"}],"branches":null},{"company":"Bottomline","tier":"Tier 1","roles":[{"role":"Trainee Engineer","branches":null,"stipend":50000,"base":12.26,"ctc":14,"oa":"07/11/25","interview":"07/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":8,"gpa":8,"note":null}],"branches":null},{"company":"Genpact","tier":"Tier 1","roles":[{"role":"Business Analyst","branches":null,"stipend":null,"base":10,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Only FTE Hiring"}],"branches":null},{"company":"Conga","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":12000,"base":12,"ctc":12.9,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Expedia","tier":"Tier 1","roles":[{"role":"ML Engineer 1","branches":null,"stipend":null,"base":18,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Additional $15000 Stock options and $5000 relocation bonus if applicable"}],"branches":null},{"company":"Renesas Electronics India","tier":"Tier 1","roles":[{"role":"Digital Design Engineer","branches":"ECE, EEE","stipend":null,"base":null,"ctc":23.1,"oa":"16/11/25","interview":"16/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"FTE Only. Came for ECE & EEE only"},{"role":"Digital Verification Engineer","branches":"ECE, EEE","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Digital Validation Engineer","branches":"ECE, EEE","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"ECE, EEE"},{"company":"MoveInSync Solutions","tier":"Tier 1","roles":[{"role":"SDE","branches":null,"stipend":45000,"base":null,"ctc":25,"oa":"20/11/25 - 25/11/25","interview":"26/11/25 - 27/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":null},{"company":"Cimpress","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":35000,"base":12,"ctc":12.6,"oa":null,"interview":null,"ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Has only conditional PPO, so not classified as any tier"}],"branches":null},{"company":"Infosys","tier":"Tier 1","roles":[{"role":"Specialist Programmer L3","branches":null,"stipend":null,"base":null,"ctc":21,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":0,"placedBoth":null,"gpa":null,"note":"OA & criteria for shortlisting was dead hard. 2 were shortlisted for interview but din get in"},{"role":"Specialist Programmer L2","branches":null,"stipend":null,"base":null,"ctc":16,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":0,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Vidal Health","tier":"Tier 1","roles":[{"role":"Technology Intern","branches":null,"stipend":44000,"base":null,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"ACI Worldwide Solutions","tier":"Tier 1","roles":[{"role":"Associate Software Engineer","branches":null,"stipend":35000,"base":null,"ctc":12.5,"oa":"20/11/25","interview":"26/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":null}],"branches":null},{"company":"SUKI.AI India Pvt Ltd","tier":"Tier 1","roles":[{"role":"SDE in Test","branches":null,"stipend":30000,"base":null,"ctc":21.58,"oa":"27/11/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null}],"branches":null},{"company":"Akamai Technologies","tier":"Tier 1","roles":[{"role":"Technical Program Manager","branches":null,"stipend":38000,"base":null,"ctc":15.36,"oa":null,"interview":"05/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":null}],"branches":null},{"company":"314e Corporation","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":50000,"base":null,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Toddle","tier":"Tier 1","roles":[{"role":"Backend","branches":null,"stipend":50000,"base":null,"ctc":12.54,"oa":null,"interview":null,"ppt":null,"placedIntern":5,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Yugabyte","tier":"Tier 1","roles":[{"role":"SDET","branches":null,"stipend":80000,"base":null,"ctc":56,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"iNube Software Solutions","tier":"Tier 1","roles":[{"role":"Software Analyst","branches":null,"stipend":30000,"base":null,"ctc":12.5,"oa":"04/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Fam (previously FamPay)","tier":"Tier 1","roles":[{"role":"Full Stack","branches":null,"stipend":80000,"base":null,"ctc":18,"oa":"17/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Stipend - 60000 to 100000\nSalary 16 LPA - 20 LPA + Additional ESOPs"},{"role":"Mobile (Kotlin/Flutter)","branches":null,"stipend":80000,"base":null,"ctc":18,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Application Security Engineer","branches":null,"stipend":80000,"base":null,"ctc":18,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Microchip Technologies","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":30000,"base":null,"ctc":15,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Exotel","tier":"Tier 1","roles":[{"role":null,"branches":null,"stipend":75000,"base":null,"ctc":26,"oa":"17/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"CISCO","tier":"Tier 1","roles":[{"role":"Hardware Engineer","branches":"EEE","stipend":null,"base":null,"ctc":24.73,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Only for M.Tech ECE"}],"branches":"EEE"},{"company":"OneCap Technologies","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":null,"stipend":25000,"base":null,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"mirAI","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":50000,"base":6.6,"ctc":12,"oa":"02/01/26","interview":"02/01/26","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":"Open to ECE also"}],"branches":"CSE, AIML, ECE"},{"company":"SaiHarmony Solutions India Pvt Ltd","tier":"Tier 1","roles":[{"role":"Software Engineer","branches":"CSE, AIML","stipend":null,"base":null,"ctc":20,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Nemetschek India Pvt Ltd","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":60000,"base":null,"ctc":12,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Epsilon","tier":"Tier 1","roles":[{"role":"Associate Data Engineering","branches":"CSE, AIML, EEE","stipend":null,"base":null,"ctc":12,"oa":"21/01/26","interview":"21/01/26","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":"FTE Only"}],"branches":"CSE, AIML, EEE"},{"company":"F5","tier":"Tier 1","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":75000,"base":null,"ctc":20,"oa":"16/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Amedeus","tier":"Tier 1","roles":[{"role":"SDE 1","branches":"CSE, AIML, ECE, EEE","stipend":null,"base":10,"ctc":12.62,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"FTE Only"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"D E Shaw","tier":"Tier 1","roles":[{"role":"SDET","branches":"CSE, AIML, ECE","stipend":null,"base":24,"ctc":59,"oa":"28/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":2,"placedBoth":null,"gpa":7,"note":"FTE Only"}],"branches":"CSE, AIML, ECE"},{"company":"Deloitte","tier":"Tier 2","roles":[{"role":"USI","branches":"CSE, AIML, ECE","stipend":null,"base":6,"ctc":7.6,"oa":"13/09/25","interview":"17/09/25","ppt":null,"placedIntern":null,"placedFTE":40,"placedBoth":null,"gpa":6,"note":"Company asked for role preference\nbut shortlisted according to\nbusiness requirements"},{"role":"AI","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Oracle","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":9,"placedBoth":null,"gpa":null,"note":null},{"role":"CSAD","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":3,"placedBoth":null,"gpa":null,"note":null},{"role":"EDA ADMM","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":11,"placedBoth":null,"gpa":null,"note":null},{"role":"PDICSM","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":5,"placedBoth":null,"gpa":null,"note":null},{"role":"ET&P SAP","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":10,"placedBoth":null,"gpa":null,"note":null},{"role":"ET&P FT GBS","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":8,"placedBoth":null,"gpa":null,"note":null},{"role":"EAD QE","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":7,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"British Telecom ( BT Group )","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":50000,"base":7.64,"ctc":10.64,"oa":"19/09/25","interview":"19/09/25","ppt":null,"placedIntern":null,"placedFTE":10,"placedBoth":null,"gpa":null,"note":"CTC given by the company is 7.64 while 10.64 is the money received post retention and joining bonus. So considered 10.64 as CTC with 7.64 as base"}],"branches":null},{"company":"DTICI (Daimler Truck \nInnovation Center India)","tier":"Tier 2","roles":[{"role":"CS - Graduate Trainee","branches":null,"stipend":null,"base":null,"ctc":10,"oa":"16/09/25","interview":"TBD","ppt":null,"placedIntern":null,"placedFTE":2,"placedBoth":null,"gpa":null,"note":null},{"role":"ECE/EEE - Gradute Trainee","branches":null,"stipend":null,"base":null,"ctc":10,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Collins Aerospace","tier":"Tier 2","roles":[{"role":"Graduate Engineer Trainee","branches":null,"stipend":20000,"base":null,"ctc":8,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Tejas Networks","tier":"Tier 2","roles":[{"role":"Software Engineer","branches":null,"stipend":30000,"base":null,"ctc":10,"oa":"29/09/25","interview":"29/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":null},{"role":"Hardware Engineer","branches":null,"stipend":30000,"base":null,"ctc":10,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":null},{"company":"EY","tier":"Tier 2","roles":[{"role":"Associate Consultant","branches":null,"stipend":21200,"base":7.5,"ctc":9.2,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":22,"gpa":null,"note":null}],"branches":null},{"company":"KPMG","tier":"Tier 2","roles":[{"role":"Tech Transformation DEQ","branches":null,"stipend":20000,"base":6,"ctc":null,"oa":"20/09/25","interview":"24/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":6.5,"note":"CTC: Total Earning Potential will be Base + Variable + Other benefits [Variable Pay - which depends on the individual’s performance, service line’s performance and the firm’s performance + Other Benefits (Gratuity & Insurance)]"},{"role":"Digital Soln- Strategy & Insight - CB","branches":null,"stipend":20000,"base":6,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"gpa":null,"note":null},{"role":"GRCS TMT","branches":null,"stipend":20000,"base":6,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":null},{"role":"TE_SAP","branches":null,"stipend":20000,"base":5,"ctc":null,"oa":"09/11/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Digital Trust - Cyber Assurance","branches":null,"stipend":20000,"base":5,"ctc":7,"oa":"20/09/25","interview":"25/09/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":"2 are under waitlist"}],"branches":null},{"company":"Telstra","tier":"Tier 2","roles":[{"role":"Associate Software Engineer","branches":null,"stipend":25000,"base":9.43,"ctc":10,"oa":"03/10/25","interview":"09/10/25","ppt":null,"placedIntern":null,"placedFTE":14,"placedBoth":null,"gpa":8,"note":"There are other allowances that might be provided which is not part of the CTC. Only a few have been offered the itnernship"}],"branches":null},{"company":"Applied Materials","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":55000,"base":10,"ctc":11.92,"oa":"13/10/25","interview":"15/10/25","ppt":"15/10/25","placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":"Additional 6000 USD stocks"}],"branches":null},{"company":"Toshiba","tier":"Tier 2","roles":[{"role":"Associate Software Engineer","branches":null,"stipend":45000,"base":10,"ctc":11.5,"oa":"07/10/25","interview":"08/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":"Shortlisted 8.2+ for CSE"}],"branches":null},{"company":"Broadridge Financial Solutions","tier":"Tier 2","roles":[{"role":"SDE","branches":null,"stipend":30000,"base":null,"ctc":10,"oa":"16/10/25","interview":"17/10/25","ppt":"16/10/25","placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":"Additional 5 lacs medical insurance"},{"role":"Automation Testing & SDET","branches":null,"stipend":30000,"base":null,"ctc":10,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"HP","tier":"Tier 2","roles":[{"role":"Transformation Intern","branches":null,"stipend":40000,"base":null,"ctc":9,"oa":null,"interview":"10/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Hiring for internship only with PBC"}],"branches":null},{"company":"Havells","tier":"Tier 2","roles":[{"role":"Software Engineer","branches":null,"stipend":25000,"base":8,"ctc":11.5,"oa":"17/11/25","interview":"18/11/25","ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Core Engineer","branches":null,"stipend":25000,"base":7,"ctc":9.5,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"7-eleven","tier":"Tier 2","roles":[{"role":"Associate Software Engineer","branches":null,"stipend":null,"base":10,"ctc":11.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":"10 inclusive of fixed + variable, Additional 1.5 JB"}],"branches":null},{"company":"Hourglass","tier":"Tier 2","roles":[{"role":"Patent Associate","branches":null,"stipend":null,"base":7.5,"ctc":7.5,"oa":"27/10/25","interview":"27/10/25","ppt":null,"placedIntern":null,"placedFTE":8,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Insight Global Staffing Services","tier":"Tier 2","roles":[{"role":"Software Engineer Trainee","branches":null,"stipend":null,"base":null,"ctc":6,"oa":"24/10/25","interview":"26-28/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"PwC","tier":"Tier 2","roles":[{"role":"Associate Engineer","branches":null,"stipend":35000,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":10,"gpa":null,"note":null}],"branches":null},{"company":"phData","tier":"Tier 2","roles":[{"role":"Associate Engineer","branches":null,"stipend":null,"base":null,"ctc":7,"oa":"10/11/25","interview":"15/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":9,"gpa":null,"note":null}],"branches":null},{"company":"Accenture","tier":"Tier 2","roles":[{"role":"Associate Trainee Intern","branches":null,"stipend":35000,"base":null,"ctc":6,"oa":"13-14/11/25","interview":null,"ppt":null,"placedIntern":4,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"6 months internship followed by 12 months apprenticeship"}],"branches":null},{"company":"Oracle (OFSS)","tier":"Tier 2","roles":[{"role":"Associate Consultant","branches":null,"stipend":null,"base":null,"ctc":9.82,"oa":"08/11/25","interview":"08/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"ITC Infotech","tier":"Tier 2","roles":[{"role":"4 roles","branches":null,"stipend":15000,"base":null,"ctc":8.5,"oa":null,"interview":"18/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":null}],"branches":null},{"company":"HPE","tier":"Tier 2","roles":[{"role":"IT Developer","branches":null,"stipend":30000,"base":8,"ctc":8.42,"oa":"29/10/25","interview":"04/11/25","ppt":"29/10/25","placedIntern":null,"placedFTE":null,"placedBoth":9,"gpa":null,"note":null}],"branches":null},{"company":"Consecure Technologies","tier":"Tier 2","roles":[{"role":"Software Engineer","branches":null,"stipend":20000,"base":null,"ctc":8,"oa":"06/11/25","interview":"07/11/25","ppt":"06/11/25","placedIntern":null,"placedFTE":null,"placedBoth":14,"gpa":null,"note":null}],"branches":null},{"company":"Maersk GSC India Pvt. Ltd","tier":"Tier 2","roles":[{"role":"Data Analyst Intern","branches":null,"stipend":50000,"base":null,"ctc":10.84,"oa":null,"interview":"28/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":4,"gpa":null,"note":"Internship with PBC. Internship duration - 6 months to 1 Yr"}],"branches":null},{"company":"Winman","tier":"Tier 2","roles":[{"role":"Software Engineer L2","branches":null,"stipend":15000,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Product Engineer","branches":null,"stipend":20000,"base":null,"ctc":8,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Leadsquared","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":35000,"base":null,"ctc":11,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":7,"gpa":null,"note":null}],"branches":null},{"company":"Swiggy","tier":"Tier 2","roles":[{"role":"SDE","branches":null,"stipend":null,"base":null,"ctc":11,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":3,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Titan","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":15000,"base":null,"ctc":6,"oa":"27/11/25","interview":"27/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Mech Only"}],"branches":null},{"company":"Infosys","tier":"Tier 2","roles":[{"role":"Specialist Programmer L1","branches":null,"stipend":null,"base":10,"ctc":11,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"1 Lac JB"},{"role":"Digital Specialist Engineer","branches":null,"stipend":null,"base":6.25,"ctc":7,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Maximus GCC Technology & Business System","tier":"Tier 2","roles":[{"role":"Intern","branches":null,"stipend":30000,"base":null,"ctc":7.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"gpa":null,"note":null}],"branches":null},{"company":"Wakefit","tier":"Tier 2","roles":[{"role":"SDE","branches":null,"stipend":25000,"base":null,"ctc":8,"oa":"25/11/25","interview":"25/11/25","ppt":null,"placedIntern":3,"placedFTE":null,"placedBoth":4,"gpa":null,"note":null}],"branches":null},{"company":"TheMathCompany","tier":"Tier 2","roles":[{"role":"Associate AI Engineer","branches":null,"stipend":null,"base":null,"ctc":8,"oa":null,"interview":"28/11/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Nous Infosystems","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":17000,"base":null,"ctc":7.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Evam Labs","tier":"Tier 2","roles":[{"role":"Data Science Intern","branches":null,"stipend":35000,"base":null,"ctc":7.2,"oa":"03/12/25","interview":null,"ppt":null,"placedIntern":4,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Data Engineering Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"Full Stack Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null},{"role":"UI Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Thales Group","tier":"Tier 2","roles":[{"role":"SW Embedded","branches":null,"stipend":25000,"base":null,"ctc":9,"oa":"29/11/25","interview":"11/12/25","ppt":null,"placedIntern":1,"placedFTE":null,"placedBoth":6,"gpa":null,"note":"9 CTC post conversion for engineering role.\n8 CTC post conversion for engineering support role\nFinal Interview at BMSCE Campus"},{"role":"SW Solution","branches":null,"stipend":null,"base":null,"ctc":8,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":null}],"branches":null},{"company":"Core Stack","tier":"Tier 2","roles":[{"role":"Associate SDE","branches":null,"stipend":25000,"base":null,"ctc":8,"oa":"05/12/25","interview":"18-19/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":"Job Location is Chennai"},{"role":"Associate Product Specialist","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Mysa Innovations Pvt Ltd","tier":"Tier 2","roles":[{"role":"Back Connect Process Specialist","branches":null,"stipend":30000,"base":null,"ctc":7,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"AXA XL","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":20000,"base":null,"ctc":11,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"BlackBuck","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":40000,"base":null,"ctc":8,"oa":"09/12/25","interview":"15/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":7,"gpa":null,"note":null}],"branches":null},{"company":"Nagravision India Pvt Ltd","tier":"Tier 2","roles":[{"role":"Trainee","branches":null,"stipend":25000,"base":null,"ctc":8.5,"oa":"07/12/25","interview":"11/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":22,"gpa":null,"note":"B.Tech : Inclusive of EEE & ECE, M.Tech : CSE"}],"branches":null},{"company":"Perfios","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":15500,"base":null,"ctc":10,"oa":"12/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"JSW Energy","tier":"Tier 2","roles":[{"role":"GET","branches":null,"stipend":"-","base":null,"ctc":8,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Probation period of 12 months starting from June '26. Post probation, revised CTC would be 8.5. Job location is Mumbai"}],"branches":null},{"company":"Orange Business India","tier":"Tier 2","roles":[{"role":"Graduate Engineer Trainee","branches":null,"stipend":null,"base":null,"ctc":6.5,"oa":"12/12/25","interview":"12/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"HCL Tech","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Tier : MOMENTUM - ₹6 LPA - For high performers in interviews & assessments \nTier : POLARIS - ₹10 LPA - Reserved for the top 10% of eligible candidates"},{"role":"Lead Engineer","branches":null,"stipend":null,"base":null,"ctc":10,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":null},{"company":"Temenos","tier":"Tier 2","roles":[{"role":"Associate Product Engineer","branches":null,"stipend":25000,"base":null,"ctc":6.1,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Job Location : Bangalore/Chennai ; Open to ECE & EEE also"}],"branches":null},{"company":"Siemens Healthcare Pvt Ltd","tier":"Tier 2","roles":[{"role":"Technical Trainee","branches":null,"stipend":25000,"base":null,"ctc":7.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"CTC excludes JB of 1 lac and RB of 4 lacs ( RB eligible only after a period of 3 years )"}],"branches":null},{"company":"Havai Aerial System Pvt Ltd","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":10000,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Only for EEE & Mech"}],"branches":null},{"company":"Atos","tier":"Tier 2","roles":[{"role":"CyberSec","branches":"CSE, AIML","stipend":30000,"base":null,"ctc":6.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"JL : Mumbai/Chennai/Pune/Bangalore"}],"branches":"CSE, AIML"},{"company":"Tyfone","tier":"Tier 2","roles":[{"role":null,"branches":"CSE, AIML, ECE","stipend":null,"base":null,"ctc":9,"oa":"28/01/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"FTE Only; JL : Blr/Hyd; Open to M.Tech & B.Tech"}],"branches":"CSE, AIML, ECE"},{"company":"eLitmus","tier":"Tier 2","roles":[{"role":"Managment Trainee","branches":"CSE, AIML","stipend":null,"base":null,"ctc":6.13,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"It is a Mass Hiring Role"}],"branches":"CSE, AIML"},{"company":"Mirai Labs","tier":"Tier 2","roles":[{"role":"AI Intern","branches":"CSE, AIML","stipend":10000,"base":4.8,"ctc":8,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML"},{"company":"Zopsmart","tier":"Tier 2","roles":[{"role":"SDE","branches":null,"stipend":30000,"base":8,"ctc":10.34,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":0,"gpa":null,"note":null}],"branches":null},{"company":"Cubic Logics","tier":"Tier 2","roles":[{"role":"SDE","branches":"CSE, AIML, ECE, EEE","stipend":15000,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"GKN Aerospace Engine Systems","tier":"Tier 2","roles":[{"role":"Trainee","branches":"CSE, AIML","stipend":null,"base":null,"ctc":10.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"FTE Only"}],"branches":"CSE, AIML"},{"company":"Epam","tier":"Tier 2","roles":[{"role":null,"branches":null,"stipend":27500,"base":null,"ctc":8.48,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":"JL : Hyd/Coimbatore/Chennai"}],"branches":null},{"company":"Global ITES","tier":"Tier 2","roles":[{"role":"Research Analyst","branches":"CSE, AIML, ECE, EEE, MECH","stipend":15000,"base":null,"ctc":6,"oa":"09/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"Affinsys","tier":"Tier 2","roles":[{"role":"Solution Consultant Intern","branches":"CSE, AIML, ECE","stipend":20000,"base":6.5,"ctc":8.25,"oa":"01/09/26","interview":"01/09/26","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"gpa":null,"note":"Has a bond of 2.5 yrs"}],"branches":"CSE, AIML, ECE"},{"company":"IBM(KPH)","tier":"Tier 2","roles":[{"role":"Application Developer","branches":"CSE, AIML, ECE","stipend":null,"base":7.5,"ctc":8.25,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":5,"gpa":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Eversana India","tier":"Tier 2","roles":[{"role":"Data Engineer","branches":"CSE, AIML, ECE","stipend":null,"base":null,"ctc":6.5,"oa":"16/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":3,"placedBoth":null,"gpa":null,"note":"JL : Blr/Pune"}],"branches":"CSE, AIML, ECE"},{"company":"Itron","tier":"Tier 2","roles":[{"role":"Development or Testing","branches":null,"stipend":null,"base":null,"ctc":11,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"Has Retention Bonus"}],"branches":null},{"company":"Rockewell Automation","tier":"Tier 2","roles":[{"role":"GET","branches":"CSE, AIML, ECE, EEE","stipend":null,"base":null,"ctc":10.5,"oa":"10/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"gpa":null,"note":"FTE Only"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"LTI Mindtree","tier":"Tier 3","roles":[{"role":"Graduate Engineer Trainee","branches":null,"stipend":null,"base":null,"ctc":4.05,"oa":"20/09/2025","interview":null,"ppt":null,"placedIntern":null,"placedFTE":19,"placedBoth":null,"note":null}],"branches":null},{"company":"SAFRAN Engineering","tier":"Tier 3","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":5,"oa":"11/10/2025","interview":"13/10/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":null},{"company":"Winman","tier":"Tier 3","roles":[{"role":"Software Engineer L1","branches":null,"stipend":null,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":null},{"company":"Arys Garage","tier":"Tier 3","roles":[{"role":"7 roles","branches":null,"stipend":8000,"base":null,"ctc":3.93,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":3,"note":null}],"branches":null},{"company":"Mirafra Software Technologies","tier":"Tier 3","roles":[{"role":null,"branches":null,"stipend":25000,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":null},{"company":"DeltaX","tier":"Tier 3","roles":[{"role":"Operations Analyst","branches":null,"stipend":5000,"base":null,"ctc":3.16,"oa":null,"interview":"3/12/25","ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":1,"note":"Direct walk in drive in their office with no OA"},{"role":"GTM Associate","branches":null,"stipend":null,"base":null,"ctc":5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"14 LPA over a period of 2 yrs"}],"branches":null},{"company":"Publicis Sapient","tier":"Tier 3","roles":[{"role":"Trainee System Engineer","branches":null,"stipend":null,"base":null,"ctc":4.58,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":4,"placedBoth":null,"note":"Job location Pune/Hyd/Blr"}],"branches":null},{"company":"Newjaisa Technologies","tier":"Tier 3","roles":[{"role":"Process Engineer","branches":null,"stipend":15000,"base":null,"ctc":4.5,"oa":"7/12/25","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":null},{"company":"HCLTech","tier":"Tier 3","roles":[{"role":"Java Fullstack Dev","branches":null,"stipend":15000,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"Location : PAN India"},{"role":"DotNet Dev","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null},{"role":"Python Dev","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":null},{"company":"Accenture","tier":"Tier 3","roles":[{"role":"ASE","branches":null,"stipend":null,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":23,"placedBoth":null,"note":null},{"role":"AASE","branches":null,"stipend":null,"base":null,"ctc":6,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":35,"placedBoth":null,"note":null}],"branches":null},{"company":"Secure Meters Limited","tier":"Tier 3","roles":[{"role":"Graduate Engineer Trainee - Sales & Marketing","branches":null,"stipend":20000,"base":null,"ctc":5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"ECE & EEE Only"}],"branches":null},{"company":"CERATZIT India Pvt Ltd","tier":"Tier 3","roles":[{"role":"Apprenticeship","branches":null,"stipend":null,"base":null,"ctc":3.25,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"Only for Mech"}],"branches":null},{"company":"HCL Tech","tier":"Tier 3","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"Tier: ASCEND  - ₹4.5 LPA - All candidates \nwho meet the minimum criteria"}],"branches":null},{"company":"Kennametal","tier":"Tier 3","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":5.84,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"FTW Only"}],"branches":null},{"company":"Citius Tech Healthcare Technologies","tier":"Tier 3","roles":[{"role":"Developer","branches":"CSE, AIML","stipend":20000,"base":null,"ctc":5.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":13,"note":"5% Variable Pay"},{"role":"QA","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":2,"note":null}],"branches":"CSE, AIML"},{"company":"Invictus Defense System","tier":"Tier 3","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE, MECH","stipend":20000,"base":null,"ctc":3.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"Open to entire B.Tech & M.Tech"}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"Skylark Drones","tier":"Tier 3","roles":[{"role":null,"branches":"CSE, AIML","stipend":25000,"base":null,"ctc":5.5,"oa":"10/02/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"Open to M.Tech also"}],"branches":"CSE, AIML"},{"company":"Hospet Steels Limited","tier":"Tier 3","roles":[{"role":null,"branches":"MECH","stipend":null,"base":null,"ctc":5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"FTE Only. Only for Mechanical"}],"branches":"MECH"},{"company":"Kiwi General Insurance","tier":"Tier 3","roles":[{"role":"Engineer Trainee","branches":"MECH","stipend":null,"base":null,"ctc":5.5,"oa":"30/01/26","interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"FTE Only. Only for Mechanical"}],"branches":"MECH"},{"company":"Veoneer","tier":"Tier 3","roles":[{"role":null,"branches":"ECE, EEE","stipend":20000,"base":null,"ctc":5.2,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":"ECE, EEE"},{"company":"Bray Controls India","tier":"Tier 3","roles":[{"role":"Embedded Engineer","branches":"ECE","stipend":null,"base":null,"ctc":4,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":"ECE"},{"company":"Tata Advanced System","tier":"Tier 3","roles":[{"role":"GET","branches":"ECE, EEE, MECH","stipend":null,"base":null,"ctc":5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"JL : Mumbai/Blr"}],"branches":"ECE, EEE, MECH"},{"company":"Rapid Global Business Solutions","tier":"Tier 3","roles":[{"role":null,"branches":"MECH","stipend":null,"base":null,"ctc":4.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":"FTE Only"}],"branches":"MECH"},{"company":"Wildly Tech Pvt Ltd","tier":"Tier 3","roles":[{"role":"Firmware Engineer","branches":"CSE, AIML, ECE, EEE","stipend":18000,"base":null,"ctc":3.5,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null},{"role":"Embedded Hardware Engineer","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null},{"role":"Software Engineer","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"placedFTE":null,"placedBoth":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Infineon","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":40000,"base":null,"ctc":null,"oa":"15/09/25","interview":"20/09/25","ppt":null,"placedIntern":9,"note":null}],"branches":null},{"company":"VectraAI","tier":"Internship Only","roles":[{"role":"Software Engineering Intern","branches":null,"stipend":20000,"base":null,"ctc":null,"oa":"No OA","interview":"24/09/25","ppt":null,"placedIntern":3,"note":null}],"branches":null},{"company":"MediBuddy","tier":"Internship Only","roles":[{"role":"Student Intern","branches":null,"stipend":45000,"base":"PBC","ctc":"PBC","oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Textron","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"note":null}],"branches":null},{"company":"Nokia","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":16,"note":"Internship period from 6 - 10 months"}],"branches":null},{"company":"Goldman Sachs","tier":"Internship Only","roles":[{"role":"Seasonal Analyst","branches":null,"stipend":70000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":6,"note":null}],"branches":null},{"company":"Nasdaq","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":50000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Myntra","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":70000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"note":"(Applied through Unstop and not from PES , so not sure if its on campus , or a collaboration between PES and Myntra)"}],"branches":null},{"company":"Lending Labs","tier":"Internship Only","roles":[{"role":"Software Engineer Intern","branches":null,"stipend":50000,"base":"PBC","ctc":"PBC","oa":null,"interview":null,"ppt":null,"placedIntern":2,"note":"PBC with a package of 10-12 at companies discretion"}],"branches":null},{"company":"Ather","tier":"Internship Only","roles":[{"role":"Data Science Intern","branches":"CSE, AIML","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null},{"role":"System Engineering Intern","branches":"CSE, AIML","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null},{"role":"Product Engineer","branches":"CSE, AIML, ECE, EEE","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"ECE & EEE as well"}],"branches":"CSE, AIML"},{"company":"Zebra Technologies","tier":"Internship Only","roles":[{"role":"Software Intern","branches":null,"stipend":33600,"base":null,"ctc":null,"oa":"31/10/25","interview":"11/03/25","ppt":"31/10/25","placedIntern":28,"note":null}],"branches":null},{"company":"Toshiba Tec Corporation","tier":"Internship Only","roles":[{"role":"Cloud Backend Intern","branches":null,"stipend":null,"base":"PBC","ctc":"PBC","oa":"30/10/25","interview":"31/10/25","ppt":"30/10/25","placedIntern":null,"note":null}],"branches":null},{"company":"Zeta","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":60000,"base":null,"ctc":null,"oa":"11/04/25","interview":null,"ppt":"11/04/25","placedIntern":null,"note":null},{"role":"Data Science Intern","branches":null,"stipend":110000,"base":null,"ctc":null,"oa":"12/06/25","interview":"12/12/25","ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Bajaj Finserv","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Flam","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Big Basket","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":12,"note":null}],"branches":null},{"company":"Garrett Motion Inc.","tier":"Internship Only","roles":[{"role":"System Engineer","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Aptos","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":30000,"base":null,"ctc":null,"oa":"17/11/25","interview":null,"ppt":null,"placedIntern":4,"note":null}],"branches":null},{"company":"Rakuten","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":30000,"base":null,"ctc":null,"oa":"17/11/25","interview":"17/11/25","ppt":null,"placedIntern":8,"note":null}],"branches":null},{"company":"Inkle","tier":"Internship Only","roles":[{"role":"FrontEnd Intern","branches":null,"stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"BackEnd Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"AI Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Quicken","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":50000,"base":null,"ctc":null,"oa":"11/12/25","interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Zynga Game Network","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":80000,"base":null,"ctc":null,"oa":"19/11/25","interview":null,"ppt":null,"placedIntern":2,"note":null},{"role":"Production Internship","branches":null,"stipend":50000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"HSBC EDPI","tier":"Internship Only","roles":[{"role":"Analyst Intern","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"HyperVerge","tier":"Internship Only","roles":[{"role":"Product Intern","branches":null,"stipend":30000,"base":null,"ctc":"16/12/25","oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"PPO based on Performance"},{"role":"Junior SA","branches":null,"stipend":35000,"base":null,"ctc":"13/10/25","oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"IE","branches":null,"stipend":30000,"base":null,"ctc":"10/07/25","oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"ML Intern (Women Only)","branches":null,"stipend":45000,"base":null,"ctc":"14-18","oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Deloitte","tier":"Internship Only","roles":[{"role":"Audit & Assurance","branches":"CSE, AIML","stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":6,"note":null}],"branches":"CSE, AIML"},{"company":"Picarro Technologies Pvt Ltd","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":"24/12/25","interview":null,"ppt":null,"placedIntern":6,"note":null}],"branches":null},{"company":"Evernorth Health Services","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":10,"note":"Job Location is Hyd"}],"branches":null},{"company":"Analog Device","tier":"Internship Only","roles":[{"role":"AI Intern","branches":null,"stipend":45000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null},{"role":"Cloud Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Sharechat","tier":"Internship Only","roles":[{"role":"SDE Intern","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":"12/02/25","interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Rubrik India Pvt. Ltd","tier":"Internship Only","roles":[{"role":"Technical Program Management Intern","branches":null,"stipend":75000,"base":null,"ctc":null,"oa":"12/07/25","interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"GreenStich Technologies","tier":"Internship Only","roles":[{"role":"SDE Intern","branches":"CSE, AIML, ECE, EEE","stipend":40000,"base":null,"ctc":null,"oa":"12/04/25","interview":null,"ppt":null,"placedIntern":1,"note":"Have come for ECE & EEE as well"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Global Foundaries","tier":"Internship Only","roles":[{"role":"3 roles","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":"12/04/25","interview":null,"ppt":null,"placedIntern":2,"note":null}],"branches":null},{"company":"First Principle Pvt Ltd","tier":"Internship Only","roles":[{"role":"QA Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":25000,"base":null,"ctc":null,"oa":"12/05/25","interview":null,"ppt":null,"placedIntern":null,"note":"Entire B.Tech is eligible for this"},{"role":"SDE Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"aiNions","tier":"Internship Only","roles":[{"role":"GenAI Intern","branches":null,"stipend":60000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Embitel Technologies","tier":"Internship Only","roles":[{"role":"Internship","branches":null,"stipend":50000,"base":null,"ctc":null,"oa":"12/09/25","interview":"12/09/25","ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Jar","tier":"Internship Only","roles":[{"role":"Backend Intern","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":"16/12/25","interview":"16/12/25","ppt":null,"placedIntern":5,"note":null},{"role":"Data Analyst Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"note":null}],"branches":null},{"company":"Medtronic Engineering & Innovation Centre (MEIC)","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":55000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Job Location : Hyderabad"}],"branches":null},{"company":"Orange Business India","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":20000,"base":null,"ctc":null,"oa":"12/12/25","interview":"12/12/25","ppt":null,"placedIntern":7,"note":null}],"branches":null},{"company":"Mysa","tier":"Internship Only","roles":[{"role":"Technical Support Internship","branches":null,"stipend":60000,"base":null,"ctc":null,"oa":"18/12/25","interview":null,"ppt":null,"placedIntern":2,"note":null}],"branches":null},{"company":"Aviatrix","tier":"Internship Only","roles":[{"role":"Internship","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Digicert","tier":"Internship Only","roles":[{"role":"Internship","branches":null,"stipend":40000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Worxogo","tier":"Internship Only","roles":[{"role":"Customer Success Analyst","branches":null,"stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Zenzar Technologies","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":50000,"base":null,"ctc":null,"oa":"19/12/25","interview":"01/06/26","ppt":null,"placedIntern":null,"note":"Job Location : Blr or Pune"}],"branches":null},{"company":"RapidClaims","tier":"Internship Only","roles":[{"role":"Data Science Intern","branches":null,"stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"VeArc Technologies","tier":"Internship Only","roles":[{"role":"Intern","branches":"CSE, AIML","stipend":55000,"base":null,"ctc":null,"oa":"01/12/26","interview":"01/12/26","ppt":null,"placedIntern":12,"note":"8 of these have been converted to FTE"}],"branches":"CSE, AIML"},{"company":"Consuma AI","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":50000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Zetwork Manufacturing","tier":"Internship Only","roles":[{"role":"SDE & QA","branches":null,"stipend":50000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Morgan Stanley","tier":"Internship Only","roles":[{"role":"Technology Spring Analyst","branches":null,"stipend":107000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":"Hired Based on MS Code to Give Hackathon"}],"branches":null},{"company":"Pine Labs","tier":"Internship Only","roles":[{"role":"SDE","branches":null,"stipend":40000,"base":null,"ctc":null,"oa":"19/12/25","interview":"19/12/25","ppt":null,"placedIntern":4,"note":null}],"branches":null},{"company":"Plum Benefits Insurance Brokers Pvt Ltd","tier":"Internship Only","roles":[{"role":"Operations Executive","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":30000,"base":null,"ctc":null,"oa":"19/12/25","interview":null,"ppt":null,"placedIntern":null,"note":"Customer Success is the role post conversion. Open to entire B.Tech"}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"AppsForBharat","tier":"Internship Only","roles":[{"role":"SDE","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":"Entire B.Tech"},{"role":"QA","branches":"CSE, AIML","stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Only CS/IT"}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"4Good.AI","tier":"Internship Only","roles":[{"role":"FullStack Dev","branches":"CSE, AIML, ECE, EEE","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Open to EEE n ECE as well"},{"role":"AIML Dev","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"ILP Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":10000,"base":null,"ctc":null,"oa":"02/02/26","interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"SERENT.AI","tier":"Internship Only","roles":[{"role":"Data Science Intern","branches":null,"stipend":35000,"base":null,"ctc":null,"oa":"23/12/25","interview":null,"ppt":null,"placedIntern":null,"note":"Open to M.Tech, B.Tech, MCA, BCA"},{"role":"ML Ops Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Arcesium","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":100000,"base":null,"ctc":null,"oa":null,"interview":"01/08/26","ppt":null,"placedIntern":1,"note":"JL : Hyderabad. Open to ECE n EEE also"}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Progress","tier":"Internship Only","roles":[{"role":"Product Mgmt Intern","branches":"CSE, AIML, ECE, EEE","stipend":40000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"B.Tech : Open to ECE, EEE\nM.Tech : CSE, ECE"},{"role":"SDE Intern","branches":"CSE, AIML, ECE, EEE","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Drongo AI","tier":"Internship Only","roles":[{"role":"Intern for Web Dev & AI","branches":null,"stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":2,"note":"1 from BTech n 1 from MCA"}],"branches":null},{"company":"Thoucentric","tier":"Internship Only","roles":[{"role":"Sales & Customer Insights Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Internship for 3 months."}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"Swiggy","tier":"Internship Only","roles":[{"role":"Business Analyst Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":40000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":3,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"MoveInSync","tier":"Internship Only","roles":[{"role":"UI Intern","branches":null,"stipend":45000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Trivitron Digital AI","tier":"Internship Only","roles":[{"role":"Intern","branches":null,"stipend":null,"base":null,"ctc":null,"oa":"01/05/26","interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Pratt & Whitney","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"SimplyFI Softech Pvt. Ltd","tier":"Internship Only","roles":[{"role":"AIML & Blockchain","branches":"CSE, AIML","stipend":10000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Open to M.Tech and xCA as well"}],"branches":"CSE, AIML"},{"company":"Sheng Huei Technology India Pvt Ltd","tier":"Internship Only","roles":[{"role":null,"branches":"MECH","stipend":15000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"MECH"},{"company":"Everllence SE","tier":"Internship Only","roles":[{"role":null,"branches":"EEE, MECH","stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"EEE, MECH"},{"company":"Rubrik India Pvt Ltd","tier":"Internship Only","roles":[{"role":"Technical Program Management Intern","branches":"CSE, AIML","stipend":75000,"base":null,"ctc":null,"oa":"01/07/26","interview":"01/07/26","ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"Get Skilled Services Private Limited","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE, MECH","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"Open to M.Tech, xCA as well"}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"MSG Global Solutions","tier":"Internship Only","roles":[{"role":"Java Intern","branches":"CSE, AIML","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":"Open to MCA as well"}],"branches":"CSE, AIML"},{"company":"Vested Services","tier":"Internship Only","roles":[{"role":"Data Analyst Intern","branches":"CSE, AIML, ECE, EEE, MECH","stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"Engineering Intern","branches":"CSE, AIML","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"Amazon","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":70000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Mysa","tier":"Internship Only","roles":[{"role":"Social Marketing Intern","branches":"CSE, AIML, ECE, EEE, MECH, BT","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH, BT"},{"company":"Bosch","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML","stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":"CSE, AIML"},{"company":"NewSpace Research & Technologies","tier":"Internship Only","roles":[{"role":"Defense ML (R&D)","branches":"CSE, AIML, ECE, EEE","stipend":15000,"base":null,"ctc":null,"oa":"19/01/26","interview":"19/01/26","ppt":null,"placedIntern":2,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Inmobi Glance","tier":"Internship Only","roles":[{"role":"Intern Analyst","branches":"CSE, AIML, ECE, EEE, MECH","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":5,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"iAnalytics LLP","tier":"Internship Only","roles":[{"role":"Junior Risk Analyst","branches":"CSE, AIML, ECE, EEE","stipend":40000,"base":null,"ctc":null,"oa":"20/01/26","interview":"20/01/26","ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Finoco Innovations Pvt Ltd","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML","stipend":10000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"Observe.AI","tier":"Internship Only","roles":[{"role":"SDE Intern","branches":"CSE, AIML","stipend":50000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"Bizom","tier":"Internship Only","roles":[],"branches":null},{"company":"Tyfone","tier":"Internship Only","roles":[],"branches":null},{"company":"Progress","tier":"Internship Only","roles":[{"role":"AI-Augmented Content and Communication Specialist Intern","branches":"CSE, AIML, ECE","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null},{"role":"Quoting Specialist","branches":null,"stipend":33000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":"12 month internship"}],"branches":"CSE, AIML, ECE"},{"company":"SenseHQ","tier":"Internship Only","roles":[{"role":"Software Engineering Intern (Backend)","branches":null,"stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":null},{"company":"Glean","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":5,"note":null}],"branches":null},{"company":"Sigmoid","tier":"Internship Only","roles":[{"role":"Data Ops Intern","branches":"CSE, AIML","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"SaiHarmony Solutions India Pvt Ltd","tier":"Internship Only","roles":[{"role":"SDE Intern","branches":"CSE, AIML","stipend":50000,"base":null,"ctc":null,"oa":"02/10/26","interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"AtkinsRealis","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE, MECH","stipend":35000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE, MECH"},{"company":"yantralive","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"Elanco Innovation & Alliance Centre","tier":"Internship Only","roles":[{"role":"Creative Designer","branches":"CSE, AIML, ECE, EEE","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Vishanti Systems","tier":"Internship Only","roles":[{"role":"Cloud Infra Dev","branches":"CSE, AIML","stipend":20000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"WorkIndia","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":40000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"Tata Steel","tier":"Internship Only","roles":[{"role":null,"branches":"CSE, AIML, ECE, EEE","stipend":30000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE, EEE"},{"company":"HPE","tier":"Internship Only","roles":[{"role":"ASIC Intern","branches":"CSE, AIML, ECE","stipend":42500,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML, ECE"},{"company":"Aavadhi.AI","tier":"Internship Only","roles":[{"role":"AI Developer","branches":"CSE, AIML","stipend":25000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE, AIML"},{"company":"Altair Engineering India","tier":"Internship Only","roles":[{"role":"QA","branches":null,"stipend":40000,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Unacademy","tier":"Internship Only","roles":[{"role":"Software Engineering Intern","branches":"CSE","stipend":50000,"base":null,"ctc":null,"oa":"03/07/26","interview":null,"ppt":null,"placedIntern":null,"note":null}],"branches":"CSE"},{"company":"Equilibriate.AI","tier":"Internship Only","roles":[{"role":"GenAI Intern","branches":"CSE","stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":"CSE"},{"company":"LatLong","tier":"Internship Only","roles":[{"role":null,"branches":null,"stipend":null,"base":null,"ctc":null,"oa":null,"interview":null,"ppt":null,"placedIntern":1,"note":null}],"branches":null},{"company":"Oracle (OFSS)","tier":"Summer PPO","roles":[{"role":"Associate Application Developer","stipend":50000,"base":15.3,"ctc":40,"placedIntern":1,"placedBoth":3,"note":"4 got PPO ( 1 of them rejected offer)\nCTC = ~40LPA (Not exactly 40) -> RSUs worth Rs 16L + 8L Insurance and other Benefits"}],"branches":null},{"company":"JPMC (Summer Internship)","tier":"Summer PPO","roles":[{"role":"Software Engineer","stipend":75000,"base":13,"ctc":19.75,"placedIntern":null,"placedBoth":6,"note":"13L Base + 1.5L JB + 1.25L Relocation \n+ 4L  Annual Incentive Compensation (Performace Based)"}],"branches":null},{"company":"JPMC (CFG)","tier":"Summer PPO","roles":[{"role":"Software Engineer","stipend":null,"base":13,"ctc":19.75,"placedIntern":2,"placedBoth":8,"note":"This is from the Code for Good for FTE"}],"branches":null},{"company":"G2","tier":"Summer PPO","roles":[{"role":null,"stipend":40000,"base":15,"ctc":15,"placedIntern":null,"placedBoth":4,"note":null}],"branches":null},{"company":"Intuit","tier":"Summer PPO","roles":[{"role":null,"stipend":120000,"base":20.5,"ctc":45,"placedIntern":null,"placedBoth":1,"note":null}],"branches":null},{"company":"One App","tier":"Summer PPO","roles":[{"role":null,"stipend":75000,"base":null,"ctc":null,"placedIntern":null,"placedBoth":1,"note":null}],"branches":null},{"company":"Hewlett Packard Ent.","tier":"Summer PPO","roles":[{"role":null,"stipend":"-","base":12,"ctc":17.5,"placedIntern":null,"placedBoth":17,"note":"Took students through CTY program held on collaboration with CCBD (RR Campus Exclusive)"}],"branches":null},{"company":"FS Investments","tier":"Summer PPO","roles":[{"role":null,"stipend":125000,"base":17,"ctc":27,"placedIntern":1,"placedBoth":2,"note":"3 of the 4 were given the offer and all 3 accepted it"}],"branches":null},{"company":"Razorpay","tier":"Summer PPO","roles":[{"role":null,"stipend":50000,"base":18,"ctc":35,"placedIntern":2,"placedBoth":4,"note":"2L Signing Bonus + Includes ESOPs worth 15L"}],"branches":null},{"company":"Visa","tier":"Summer PPO","roles":[{"role":null,"stipend":90000,"base":16.57,"ctc":32,"placedIntern":null,"placedBoth":5,"note":"Benefits included such as free cab and stuff. Additional 1.25L for Relocation Bonus"}],"branches":null},{"company":"Fidelity Investments","tier":"Summer PPO","roles":[{"role":null,"stipend":null,"base":null,"ctc":null,"placedIntern":2,"placedBoth":1,"note":null}],"branches":null},{"company":"Akamai","tier":"Summer PPO","roles":[{"role":null,"stipend":null,"base":null,"ctc":null,"placedIntern":null,"placedBoth":5,"note":null}],"branches":null},{"company":"Walmart","tier":"Summer PPO","roles":[{"role":null,"stipend":110000,"base":null,"ctc":null,"placedIntern":null,"placedBoth":2,"note":null}],"branches":null},{"company":"Paypal","tier":"Summer PPO","roles":[{"role":null,"stipend":100000,"base":null,"ctc":null,"placedIntern":null,"placedBoth":3,"note":null}],"branches":null},{"company":"CISCO","tier":"Summer PPO","roles":[{"role":null,"stipend":98000,"base":16.4,"ctc":24.7,"placedIntern":1,"placedBoth":1,"note":null}],"branches":null}]};
+const STATUSES = [
+  ["notapplied","Not applied"],["applied","Applied"],["oa","OA done"],["shortlisted","Shortlisted"],
+  ["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"],["ineligible","Not eligible"]
+];
+const SLABEL = Object.fromEntries(STATUSES);
+const SRANK = {notapplied:0,applied:1,oa:2,shortlisted:3,interview:4,offer:5,accepted:5,rejected:-1,withdrawn:-1,ineligible:-1};
+const ROUND_TYPES = ["PPT","Application","OA","Aptitude","Group discussion","Technical R1","Technical R2","Technical R3","Managerial","HR","Offer","Other"];
+const ROUND_KEY = t => /oa|aptitude/i.test(t)?"oa":/ppt/i.test(t)?"ppt":/hr/i.test(t)?"hr":/tech|managerial|discussion/i.test(t)?"tech":/offer/i.test(t)?"offer":"other";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const fmtD = iso => { if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y.slice(2)}`; };
+const fmtMoney = n => n==null||n===""||isNaN(n) ? "—" : "₹"+Number(n).toLocaleString("en-IN");
+const placedStr = r => { const p=[]; if(r.placedIntern!=null)p.push(r.placedIntern+" intern"); if(r.placedFTE!=null)p.push(r.placedFTE+" FTE"); if(r.placedBoth!=null)p.push(r.placedBoth+" both"); return p.join(" · ")||"—"; };
+const daysFrom = iso => Math.round((new Date(iso+"T00:00")-new Date(todayISO()+"T00:00"))/86400000);
+const rel = n => n===0?"today":n===1?"tomorrow":n===-1?"yesterday":n<0?`${-n}d ago`:`in ${n}d`;
+const norm = s => String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const gpaNum = s => { const m=String(s??"").match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):null; };
+
+// ---------- previous-year index ----------
+const PREV_BY_NAME = new Map();
+for (const c of PREV.companies) { const k=norm(c.company); if(!PREV_BY_NAME.has(k)) PREV_BY_NAME.set(k,{name:c.company,hits:[]}); PREV_BY_NAME.get(k).hits.push(c); }
+function findPrev(name){
+  const k=norm(name); if(!k) return null;
+  if(PREV_BY_NAME.has(k)) return PREV_BY_NAME.get(k);
+  const k2=norm(String(name).replace(/\(.*?\)/g,""));
+  for(const [kk,v] of PREV_BY_NAME) if(kk===k2 || (k2.length>=4 && kk.startsWith(k2))) return v;
+  return null;
+}
+function searchPrev(q){
+  const k=norm(q); if(!k) return [];
+  const out=[]; for(const [kk,v] of PREV_BY_NAME) if(kk.includes(k)) out.push(v);
+  out.sort((a,b)=>(norm(a.name).startsWith(k)?0:1)-(norm(b.name).startsWith(k)?0:1)||a.name.localeCompare(b.name));
+  return out.slice(0,8);
+}
+
+// ---------- storage ----------
+let apps=[], profile={}, store=null;
+const LS=(k,v)=>{ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); }catch{ return null; } };
+function migrate(a){
+  a.rounds ||= []; a.reminders ||= []; a.offer ||= {}; a.priority ||= 0;
+  if(typeof a.resume==="string") a.resume = a.resume ? {kind:"label",name:a.resume} : null;
+  if(a.oa||a.interview||a.ppt){ if(a.ppt)a.rounds.push({id:uid(),type:"PPT",date:a.ppt,result:"done"}); if(a.oa)a.rounds.push({id:uid(),type:"OA",date:a.oa,result:"pending"}); if(a.interview)a.rounds.push({id:uid(),type:"Technical R1",date:a.interview,result:"pending"}); delete a.oa; delete a.interview; delete a.ppt; }
+  if(a.reminderDate){ a.reminders.push({id:uid(),date:a.reminderDate,text:a.reminderText||"Reminder",done:!!a.reminderDone}); delete a.reminderDate; delete a.reminderText; delete a.reminderDone; }
+  return a;
+}
+const localStore={
+  init(){ apps=(LS("pt27.apps")||[]).map(migrate); profile=LS("pt27.profile")||{}; render(); setSync("local","Saved in this browser only"); },
+  async save(a){ const i=apps.findIndex(x=>x.id===a.id); if(i>=0)apps[i]=a; else apps.push(a); LS("pt27.apps",apps); render(); },
+  async remove(id){ apps=apps.filter(x=>x.id!==id); LS("pt27.apps",apps); render(); },
+  async saveProfile(p){ profile=p; LS("pt27.profile",p); render(); }
+};
+function dbStore(db){
+  const col=db.collection("applications"), pdoc=db.doc("settings/profile");
+  return {
+    init(){
+      col.onSnapshot(s=>{ apps=s.docs.map(d=>migrate({id:d.id,...d.data()})); LS("pt27.apps",apps); render(); setSync("ok","Synced to your account"); },
+        ()=>{ setSync("local","Sync unavailable — using this browser"); apps=(LS("pt27.apps")||[]).map(migrate); render(); });
+      pdoc.onSnapshot(s=>{ profile=s.exists?s.data():(LS("pt27.profile")||{}); LS("pt27.profile",profile); render(); },()=>{ profile=LS("pt27.profile")||{}; });
+    },
+    async save(a){ const {id,...body}=a; await col.doc(id).set(JSON.parse(JSON.stringify(body))); },
+    async remove(id){ await col.doc(id).delete(); },
+    async saveProfile(p){ profile=p; await pdoc.set(p); LS("pt27.profile",p); }
+  };
+}
+function setSync(cls,txt){ const s=$("#sync"); s.className="sync "+cls; s.querySelector("span").textContent=txt; }
+// --- Supabase (own deployment) ---
+function supaStore(sb){
+  let user=null, loading=false;
+  const cache=()=>{ LS("pt27.apps",apps); LS("pt27.profile",profile); };
+  async function loadAll(){
+    if(loading) return; loading=true;
+    try{
+      const {data,error}=await sb.from("applications").select("id,data"); if(error) throw error;
+      apps=data.map(r=>migrate({id:r.id,...r.data}));
+      const p=await sb.from("profiles").select("data").maybeSingle(); profile=p.data?.data||{};
+      cache(); render(); setSync("ok","Synced · "+(user.email||""));
+    }catch(e){ setSync("local","Couldn't reach Supabase — showing cached copy"); apps=(LS("pt27.apps")||[]).map(migrate); profile=LS("pt27.profile")||{}; render(); }
+    finally{ loading=false; }
+  }
+  function signedOut(){ apps=[]; profile={}; render(); setSync("local","Not signed in"); $("#signOutBtn").hidden=true; openAuth(); }
+  return {
+    sb, user:()=>user,
+    async init(){
+      const {data:{session}}=await sb.auth.getSession(); user=session?.user||null;
+      sb.auth.onAuthStateChange((_,s)=>{ const u=s?.user||null; const changed=u?.id!==user?.id; user=u; if(u){ $("#signOutBtn").hidden=false; if(changed) loadAll(); } else signedOut(); });
+      if(user){ $("#signOutBtn").hidden=false; loadAll(); } else signedOut();
+      document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&user) loadAll(); });
+    },
+    async save(a){ if(!user) throw new Error("Sign in first"); const {id,...body}=a; const {error}=await sb.from("applications").upsert({id,user_id:user.id,data:body,updated_at:new Date().toISOString()}); if(error) throw error; const i=apps.findIndex(x=>x.id===id); if(i>=0)apps[i]=a; else apps.push(a); cache(); render(); },
+    async remove(id){ const {error}=await sb.from("applications").delete().eq("id",id); if(error) throw error; apps=apps.filter(x=>x.id!==id); cache(); render(); },
+    async saveProfile(p){ const {error}=await sb.from("profiles").upsert({user_id:user.id,data:p,updated_at:new Date().toISOString()}); if(error) throw error; profile=p; cache(); render(); }
+  };
+}
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+const adlg=$("#adlg");
+function openAuth(){ if(!adlg.open){ $("#a-msg").textContent=""; adlg.showModal(); } }
+$("#aform").addEventListener("submit",async e=>{ e.preventDefault(); const m=$("#a-msg"); m.textContent="Signing in…";
+  const {error}=await store.sb.auth.signInWithPassword({email:$("#a-email").value.trim(),password:$("#a-pass").value}); if(error){ m.textContent=error.message; return; } m.textContent=""; adlg.close(); });
+$("#a-signup").addEventListener("click",async()=>{ const m=$("#a-msg"); const email=$("#a-email").value.trim(), password=$("#a-pass").value; if(!email||password.length<6){ m.textContent="Enter an email and a password of at least 6 characters."; return; } m.textContent="Creating account…";
+  const {data,error}=await store.sb.auth.signUp({email,password}); if(error){ m.textContent=error.message; return; }
+  if(data.session){ m.textContent=""; adlg.close(); } else m.textContent="Account created — check your email to confirm, then sign in."; });
+adlg.addEventListener("cancel",e=>{ if(store?.sb && !store.user()) e.preventDefault(); });
+$("#signOutBtn").addEventListener("click",async()=>{ if(store?.sb){ await store.sb.auth.signOut(); } });
+
+let assets=null;
+async function initStore(){
+  let db=null; try{ db=window.claude?.use ? await window.claude.use("db") : null; }catch{ db=null; }
+  if(db){ store=dbStore(db); }
+  else if(SUPABASE_URL&&SUPABASE_ANON_KEY){
+    try{ await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"); store=supaStore(window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)); }
+    catch{ store=localStore; toast("Couldn't load Supabase — using this browser only"); }
+  } else store=localStore;
+  store.init();
+  try{ assets = window.claude?.use ? await window.claude.use("assets") : null; }catch{ assets=null; }
+}
+
+// ---------- resume files (PDF) ----------
+// claude.ai: artifact asset store · standalone: IndexedDB in this browser
+const IDB={
+  open(){ return this._p ||= new Promise((res,rej)=>{ const r=indexedDB.open("pt27",1); r.onupgradeneeded=()=>r.result.createObjectStore("files"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+  async run(mode,fn){ const db=await this.open(); return new Promise((res,rej)=>{ const tx=db.transaction("files",mode); const rq=fn(tx.objectStore("files")); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); },
+  put(k,v){ return this.run("readwrite",s=>s.put(v,k)); }, get(k){ return this.run("readonly",s=>s.get(k)); }, del(k){ return this.run("readwrite",s=>s.delete(k)); }
+};
+const fmtSize=b=>b>1e6?(b/1e6).toFixed(1)+" MB":Math.round(b/1e3)+" KB";
+async function storeResume(file){
+  if(file.type!=="application/pdf"&&!/\.pdf$/i.test(file.name)) throw new Error("Only PDF files are accepted");
+  if(file.size>15e6) throw new Error("PDF is larger than 15 MB");
+  if(assets){ const r=await assets.upload(file); return {kind:"asset",id:r.id,url:r.url,name:file.name,size:file.size}; }
+  if(store?.sb&&store.user()){ const path=`${store.user().id}/${uid()}.pdf`; const {error}=await store.sb.storage.from("resumes").upload(path,file,{contentType:"application/pdf"}); if(error) throw new Error(error.message); return {kind:"supa",path,name:file.name,size:file.size}; }
+  const id=uid(); await IDB.put(id,file); return {kind:"idb",id,name:file.name,size:file.size};
+}
+async function deleteResume(r){ try{ if(r?.kind==="asset"&&assets) await assets.delete(r.id); else if(r?.kind==="supa"&&store?.sb) await store.sb.storage.from("resumes").remove([r.path]); else if(r?.kind==="idb") await IDB.del(r.id); }catch{} }
+async function openResume(r){
+  if(!r) return;
+  if(r.kind==="asset"){ window.open(r.url||("/_blob/"+r.id),"_blank"); return; }
+  const w=window.open("","_blank"); // open synchronously so the browser doesn't block it
+  try{
+    let url;
+    if(r.kind==="supa"){ const {data,error}=await store.sb.storage.from("resumes").createSignedUrl(r.path,300); if(error) throw error; url=data.signedUrl; }
+    else { const b=await IDB.get(r.id); if(!b) throw new Error("That PDF isn't in this browser — re-attach it"); url=URL.createObjectURL(b); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+    if(w) w.location=url; else window.open(url,"_blank");
+  }catch(e){ if(w) w.close(); toast(e.message||"Couldn't open the PDF"); }
+}
+function resumeLinkHTML(r,id){ if(!r) return ""; if(r.kind==="label") return `<span>${esc(r.name)}</span>`; return `<a href="#" data-resume="${id}">${esc(r.name)}</a>${r.size?` <span class="hint">${fmtSize(r.size)}</span>`:""}`; }
+
+// ---------- derived ----------
+function events(a){
+  const ev=[];
+  for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:r.type,pending:r.result==="pending"||!r.result,a});
+  for(const r of a.reminders) if(r.date&&!r.done) ev.push({d:r.date,k:"rem",l:"Reminder",t:r.text,a});
+  if(a.deadline && SRANK[a.status]===0) ev.push({d:a.deadline,k:"deadline",l:"Apply by",a});
+  if(a.offer?.by && a.status==="offer") ev.push({d:a.offer.by,k:"deadline",l:"Accept offer by",a});
+  return ev;
+}
+function nextDate(a){ const ds=events(a).filter(e=>daysFrom(e.d)>=0).map(e=>e.d).sort(); return ds[0]||null; }
+function stageRank(a){
+  let r=Math.max(0,SRANK[a.status]);
+  for(const x of a.rounds){ const k=ROUND_KEY(x.type), ok=x.result==="cleared"||x.result==="done";
+    if(x.type==="Application") r=Math.max(r,1);
+    if(k==="oa"&&ok) r=Math.max(r,2);
+    if(k==="tech"||k==="hr"){ r=Math.max(r,3); if(x.date&&daysFrom(x.date)<=0&&x.result!=="rejected") r=Math.max(r,4); }
+    if(k==="offer") r=Math.max(r,5); }
+  return r; }
+function eligibility(a){
+  const out=[]; const g=gpaNum(a.gpa), me=parseFloat(profile.cgpa);
+  if(g!=null && !isNaN(me)) out.push(me>=g?{c:"ok",t:`CGPA ok (${me} ≥ ${g})`}:{c:"bad",t:`CGPA below cutoff (${me} < ${g})`});
+  if(profile.branch && a.branches){ const ok=a.branches.toUpperCase().split(/[,/ ]+/).includes(profile.branch.toUpperCase()); out.push(ok?{c:"ok",t:`${profile.branch} eligible`}:{c:"bad",t:`${profile.branch} not listed`}); }
+  return out;
+}
+
+// ---------- state ----------
+let view="tracker", mode=LS("pt27.mode")||"cards", statusFilter="all", q="", sortBy="next", showArch=false;
+let refQ="", refTier="all", refBranch="", hideTracked=false, tblSort={k:"company",asc:true};
+
+function visibleApps(){
+  let list=apps.filter(a=>showArch||!a.archived);
+  if(statusFilter!=="all") list=list.filter(a=>a.status===statusFilter);
+  if(q){ const k=q.toLowerCase(); list=list.filter(a=>[a.company,a.role,a.notes,a.outcome,a.location,a.contact,...(a.rounds.map(r=>r.note))].join(" ").toLowerCase().includes(k)); }
+  const cmp={
+    next:(a,b)=>{const x=nextDate(a),y=nextDate(b); if(x&&y)return x.localeCompare(y); if(x)return -1; if(y)return 1; return (b.updatedAt||"").localeCompare(a.updatedAt||"");},
+    updated:(a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""),
+    priority:(a,b)=>(b.priority||0)-(a.priority||0)||a.company.localeCompare(b.company),
+    ctc:(a,b)=>(+b.ctc||0)-(+a.ctc||0),
+    name:(a,b)=>a.company.localeCompare(b.company)
+  }[sortBy];
+  return list.sort(cmp);
+}
+
+// ---------- render ----------
+function render(){ renderAlerts(); renderStrip(); renderChips(); renderList(); renderEvents(); renderFunnel(); renderPolicy(); if(view==="ref") renderRef(); }
+
+function renderAlerts(){
+  const live=apps.filter(a=>!a.archived);
+  const over=[], today=[];
+  for(const a of live) for(const e of events(a)){ const n=daysFrom(e.d); if(e.k==="rem"||e.k==="deadline"||e.pending){ if(n<0&&(e.k==="rem"||e.k==="deadline")) over.push({e,n}); else if(n===0) today.push({e,n}); } }
+  let h="";
+  if(today.length) h+=`<div class="alert"><div><b>Today:</b> ${today.map(({e})=>`${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""}${e.time?" at "+esc(e.time):""}`).join(" · ")}</div></div>`;
+  if(over.length) h+=`<div class="alert red"><div><b>Overdue:</b> ${over.map(({e,n})=>`${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""} (${rel(n)})`).join(" · ")}</div></div>`;
+  if(!profile.cgpa&&!profile.branch&&apps.length) h+=`<div class="alert"><div>Add your <b>branch and CGPA</b> under Profile &amp; backup to get automatic eligibility checks on every company.</div></div>`;
+  $("#alerts").innerHTML=h;
+}
+function renderStrip(){
+  const live=apps.filter(a=>!a.archived); const n=s=>live.filter(a=>a.status===s).length;
+  const inproc=["applied","oa","shortlisted","interview"].reduce((t,s)=>t+n(s),0);
+  const best=Math.max(0,...live.filter(a=>a.status==="offer"||a.status==="accepted").map(a=>+a.offer?.ctc||+a.ctc||0));
+  $("#strip").innerHTML=[
+    ["Tracked",live.length,""],["Applied so far",live.filter(a=>SRANK[a.status]>=1||a.status==="rejected").length,""],["In process",inproc,"amber"],["Offers",n("offer")+n("accepted"),"green"],["Rejected",n("rejected"),"red"],
+    ["Best offer",best?best+"<small>LPA</small>":"—",""]
+  ].map(([l,v,c])=>`<div class="stat ${c}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+}
+function renderChips(){
+  const live=apps.filter(a=>showArch||!a.archived); const cnt=s=>s==="all"?live.length:live.filter(a=>a.status===s).length;
+  $("#statusChips").innerHTML=[["all","All"],...STATUSES].filter(([k])=>k==="all"||cnt(k)||statusFilter===k).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${statusFilter===k}">${l}<span class="c">${cnt(k)}</span></button>`).join("");
+}
+function statusSelect(a){ return `<select class="statussel" data-quick="${a.id}" aria-label="Status">${STATUSES.map(([k,l])=>`<option value="${k}" ${a.status===k?"selected":""}>${l}</option>`).join("")}</select>`; }
+function cardHTML(a,compact){
+  const el=eligibility(a);
+  const rounds=[...a.rounds].sort((x,y)=>(x.date||"").localeCompare(y.date||""));
+  const rems=a.reminders.filter(r=>!r.done||!compact);
+  const pay = a.ctc?`${a.ctc} LPA`:""; const pay2=[a.base?`base ${a.base}`:"",a.stipend?`${fmtMoney(a.stipend)}/mo`:""].filter(Boolean).join(" · ");
+  return `<article class="card ${a.archived?"archived":""}" data-id="${a.id}">
+    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${esc(a.role||"Role TBD")}${a.jobType?` · ${esc(a.jobType)}`:""}${a.location?` · ${esc(a.location)}`:""}</div></div>
+      <div style="text-align:right">${a.priority?`<div class="stars">${"★".repeat(a.priority)}</div>`:""}<span class="dot ${a.status}"></span>${statusSelect(a)}</div></div>
+    <div class="tags">${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:""}${el.map(e=>`<span class="tag ${e.c}">${e.t}</span>`).join("")}</div>
+    <dl class="kv">
+      ${pay||pay2?`<dt>Pay</dt><dd class="num">${pay}${pay2?` <span style="color:var(--ink3)">${pay2}</span>`:""}</dd>`:""}
+      ${a.gpa?`<dt>Cutoff</dt><dd class="num">${esc(a.gpa)}</dd>`:""}
+      ${a.resume&&!compact?`<dt>Resume</dt><dd>${resumeLinkHTML(a.resume,a.id)}</dd>`:""}
+      ${a.deadline&&SRANK[a.status]===0?`<dt>Apply by</dt><dd class="num">${fmtD(a.deadline)} <span style="color:var(--ink3)">${rel(daysFrom(a.deadline))}</span></dd>`:""}
+      ${(a.status==="offer"||a.status==="accepted")&&(a.offer?.ctc||a.offer?.by)?`<dt>Offer</dt><dd class="num">${a.offer.ctc?a.offer.ctc+" LPA":""}${a.offer.by?` · accept by ${fmtD(a.offer.by)}`:""}${a.offer.accepted==="yes"?" · accepted":a.offer.accepted==="no"?" · declined":""}</dd>`:""}
+    </dl>
+    ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(r.type)}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${r.result||"pending"}">${esc(r.result||"pending")}</span></div>`).join("")}</div>`:""}
+    ${rems.map(r=>{const n=daysFrom(r.date); const cls=r.done?"done":(n<0?"over":""); return `<div class="rem ${cls}"><b class="num">${fmtD(r.date)}</b><span style="flex:1">${esc(r.text||"Reminder")}</span><small>${r.done?"done":rel(n)}</small><button class="btn xs ghost" data-rem="${r.id}" data-id="${a.id}" title="${r.done?"Reopen":"Mark done"}">${r.done?"↺":"✓"}</button></div>`;}).join("")}
+    ${a.outcome&&!compact?`<div class="notes"><b>Latest:</b> ${esc(a.outcome)}</div>`:""}
+    ${a.notes&&!compact?`<div class="notes">${esc(a.notes)}</div>`:""}
+    <div class="actions">${a.link?`<a class="btn sm ghost" href="${esc(a.link)}" target="_blank" rel="noopener">Portal ↗</a>`:""}<button class="btn sm" data-act="edit" data-id="${a.id}">Edit</button></div>
+  </article>`;
+}
+function renderList(){
+  const list=visibleApps(); const w=$("#listArea");
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
+  if(!apps.length){ w.innerHTML=`<div class="empty"><h3>Nothing tracked yet</h3>Add the first company that opens for your batch, or browse the <a href="#" data-view="ref">2026 reference</a> and hit Track on the ones you expect back.</div>`; return; }
+  if(!list.length){ w.innerHTML=`<div class="empty">No companies match this filter.</div>`; return; }
+  if(mode==="cards"){ w.innerHTML=`<div class="cards">${list.map(a=>cardHTML(a,false)).join("")}</div>`; return; }
+  if(mode==="board"){
+    const cols=[["notapplied","To apply"],["applied","Applied"],["oa","OA done"],["shortlisted","Shortlisted"],["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected / out"]];
+    w.innerHTML=`<div class="board">${cols.map(([k,l])=>{const items=list.filter(a=>a.status===k||(k==="rejected"&&["withdrawn","ineligible"].includes(a.status))); return `<div class="col"><h4>${l}<span>${items.length}</span></h4><div style="display:flex;flex-direction:column;gap:8px">${items.map(a=>cardHTML(a,true)).join("")}</div></div>`;}).join("")}</div>`; return;
+  }
+  const cols=[["company","Company"],["role","Role"],["tier","Tier"],["status","Status"],["ctc","CTC"],["stipend","Stipend"],["gpa","Cutoff"],["next","Next date"],["priority","Priority"],["updatedAt","Updated"]];
+  const rows=[...list].sort((a,b)=>{const k=tblSort.k; let x=k==="next"?nextDate(a)||"":a[k]??"", y=k==="next"?nextDate(b)||"":b[k]??""; if(typeof x==="number"||typeof y==="number"){x=+x||0;y=+y||0;} const c=x<y?-1:x>y?1:0; return tblSort.asc?c:-c;});
+  w.innerHTML=`<div class="tblwrap"><table id="myTbl"><thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" class="${tblSort.k===k?"sorted":""} ${tblSort.asc?"asc":""}">${l}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map(a=>`<tr>
+    <td class="co">${esc(a.company)}</td><td>${esc(a.role||"—")}</td><td>${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:"—"}</td><td><span class="dot ${a.status}"></span>${statusSelect(a)}</td>
+    <td class="n">${a.ctc??"—"}</td><td class="n">${a.stipend?fmtMoney(a.stipend):"—"}</td><td class="n">${esc(a.gpa||"—")}</td><td class="n">${nextDate(a)?fmtD(nextDate(a))+" · "+rel(daysFrom(nextDate(a))):"—"}</td>
+    <td class="stars">${"★".repeat(a.priority||0)}</td><td class="n">${a.updatedAt?fmtD(a.updatedAt.slice(0,10)):"—"}</td><td><button class="btn xs" data-act="edit" data-id="${a.id}">Edit</button></td></tr>`).join("")}</tbody></table></div>`;
+}
+function renderEvents(){
+  const ev=[]; for(const a of apps) if(!a.archived) for(const e of events(a)){ const n=daysFrom(e.d); if(e.k==="rem"||e.k==="deadline"?n<=45:(n>=-1&&n<=45&&e.pending)) ev.push({...e,n}); }
+  ev.sort((x,y)=>x.d.localeCompare(y.d)||(x.time||"").localeCompare(y.time||""));
+  const w=$("#events");
+  if(!ev.length){ w.innerHTML=`<p class="railempty">Nothing in the next 45 days. Add rounds, deadlines or reminders and they'll appear here.</p>`; return; }
+  w.innerHTML=ev.slice(0,14).map(e=>{const [y,m,d]=e.d.split("-"); const mon=new Date(e.d+"T00:00").toLocaleString("en",{month:"short"});
+    return `<div class="ev ${e.n<0?"over":e.n===0?"today":""}"><div class="d"><b>${d}</b>${mon}</div><div class="t"><span class="k ${e.k}">${esc(e.l)} · ${rel(e.n)}${e.time?" · "+esc(e.time):""}</span><br>${esc(e.a.company)}${e.a.role?` <small>${esc(e.a.role)}</small>`:""}${e.t?`<small>${esc(e.t)}</small>`:""}</div></div>`;}).join("");
+}
+function renderFunnel(){
+  const live=apps.filter(a=>!a.archived); const stages=[["Applied",1],["OA",2],["Shortlisted",3],["Interview",4],["Offer",5]];
+  const counts=stages.map(([l,r])=>[l,live.filter(a=>stageRank(a)>=r).length]); const max=Math.max(1,counts[0][1]);
+  $("#funnel").innerHTML=counts.map(([l,n])=>`<div class="frow"><span>${l}</span><div class="bar"><i style="width:${n/max*100}%"></i></div><span class="n">${n}</span></div>`).join("");
+}
+function renderPolicy(){
+  const held=apps.filter(a=>a.status==="accepted"||(a.status==="offer"&&a.offer?.accepted==="yes"));
+  const isIntern=a=>/intern|ppo/i.test(a.jobType||"")||a.tier==="Internship Only";
+  const interns=held.filter(isIntern), ftes=held.filter(a=>!isIntern(a));
+  const tierN=t=>({"Tier 1":1,"Tier 2":2,"Tier 3":3}[t]||0);
+  let h=`<div>Holding <b>${ftes.length} FTE</b> and <b>${interns.length} internship</b> offer${held.length===1?"":"s"}.</div>`;
+  const msgs=[];
+  if(ftes.length>=2) msgs.push("You've reached the 2-FTE cap — no further FTE offers.");
+  else if(ftes.length===1){ const t=tierN(ftes[0].tier); if(t>=2) msgs.push(`Your FTE is ${ftes[0].tier}: one more offer allowed, only from a higher tier.`); else if(t===1) msgs.push("Your FTE is Tier 1: check with placement office on a second offer."); }
+  if(interns.length>=1){ const t=tierN(interns[0].tier); if(t===1) msgs.push("Internship from a Tier 1 company — no further offers under policy."); else if(t>=2) msgs.push(`Internship from ${interns[0].tier}: only FTE offers from a higher tier now.`); }
+  if(!held.length) msgs.push("Policy (2026): max 1 internship + 2 FTE; a Tier 2/3 FTE allows one more only from a higher tier; an internship allows FTE only from the next tier up.");
+  h+=`<div style="margin-top:6px">${msgs.map(m=>`<div>· ${m}</div>`).join("")}</div><div class="hint" style="margin-top:6px">Based on the 2026 policy — confirm current rules with CDC.</div>`;
+  $("#policyCheck").innerHTML=h;
+}
+
+// ---------- reference ----------
+function renderRefStrip(){
+  const s=PREV.stats,t=s.tiers;
+  $("#refStrip").innerHTML=[["Companies visited",s.overall.companies],["Students placed",s.overall.placed],["Highest CTC",s.overall.highCTC+"<small>LPA</small>"],["Median CTC",s.overall.medCTC+"<small>LPA</small>"],["Tier 1 median",t["Tier 1"].medCTC+"<small>LPA</small>"],["Tier 2 median",t["Tier 2"].medCTC+"<small>LPA</small>"],["Median stipend","₹"+t["Internship Only"].medStipend.toLocaleString("en-IN")]]
+    .map(([l,v])=>`<div class="stat"><div class="l">${l}</div><div class="v" style="font-size:24px">${v}</div></div>`).join("");
+  $("#policyText").innerHTML=`<h3>Tier guidelines &amp; policy</h3>${esc(s.guidelines)}<br><br><b>Placement policy (2026).</b> ${esc(s.policy)}<br><br><span class="hint">${esc(s.note)}. Figures were compiled by students and may differ from the official record.</span>`;
+}
+function renderRef(){
+  const tiers=["all","Tier 1","Tier 2","Tier 3","Internship Only","Summer PPO"];
+  $("#tierChips").innerHTML=tiers.map(t=>`<button class="chip" data-t="${t}" aria-pressed="${refTier===t}">${t==="all"?"All tiers":t}</button>`).join("");
+  const k=refQ.toLowerCase(), tracked=new Set(apps.map(a=>norm(a.company))), me=profile.branch?.toUpperCase();
+  const rows=[];
+  for(const c of PREV.companies){
+    if(refTier!=="all"&&c.tier!==refTier) continue;
+    if(refBranch&&!(c.branches||"").toUpperCase().includes(refBranch)) continue;
+    if(hideTracked&&tracked.has(norm(c.company))) continue;
+    if(k){ const hay=(c.company+" "+c.roles.map(r=>(r.role||"")+" "+(r.note||"")).join(" ")).toLowerCase(); if(!hay.includes(k)) continue; }
+    const inel = me && c.branches && !c.branches.toUpperCase().split(/[,/ ]+/).includes(me);
+    const roles=c.roles.length?c.roles:[{}];
+    roles.forEach((r,i)=>rows.push(`<tr class="${i===0?"co":""} ${i===0&&tracked.has(norm(c.company))?"tracked":""} ${inel?"inel":""}">
+      <td class="co">${i===0?esc(c.company):""}</td><td>${i===0?`<span class="tag tier">${esc(c.tier)}</span>`:""}</td>
+      <td>${esc(r.role||"—")}</td><td style="font-size:12px">${esc(r.branches||(i===0?c.branches:"")||"")}</td>
+      <td class="n">${r.stipend!=null?(typeof r.stipend==="number"?fmtMoney(r.stipend):esc(r.stipend)):"—"}</td>
+      <td class="n">${r.base??"—"}</td><td class="n">${r.ctc!=null?esc(r.ctc):"—"}</td>
+      <td class="n">${esc(r.oa??"—")}</td><td class="n">${esc(r.interview??"—")}</td><td class="n">${esc(r.ppt??"—")}</td>
+      <td style="white-space:nowrap">${placedStr(r)}</td><td class="n">${esc(r.gpa??"—")}</td>
+      <td class="note">${r.note?`<span title="Click to expand">${esc(r.note)}</span>`:""}</td>
+      <td>${i===0?`<button class="btn xs" data-track="${esc(c.company)}">Track</button>`:""}</td></tr>`));
+  }
+  $("#refTbl tbody").innerHTML=rows.join("")||`<tr><td colspan="14" style="text-align:center;color:var(--ink3);padding:30px">Nothing matches.</td></tr>`;
+}
+
+// ---------- add / edit form ----------
+const dlg=$("#dlg"), form=$("#form"); const F=id=>document.getElementById("f-"+id);
+let draft={rounds:[],reminders:[]};
+function renderPipeline(){ $("#pipeline").innerHTML=STATUSES.map(([k,l])=>`<button type="button" class="${k}" data-s="${k}" aria-pressed="${F("status").value===k}">${l}</button>`).join(""); $("#offerFs").hidden=!["offer","accepted"].includes(F("status").value); }
+function renderStars(){ const v=+F("priority").value; document.querySelectorAll("#starpick button").forEach(b=>b.classList.toggle("on",+b.dataset.v<=v)); }
+function renderRounds(){
+  $("#rounds").innerHTML=draft.rounds.map((r,i)=>`<div class="rrow">
+    <select data-ri="${i}" data-f="type">${ROUND_TYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select>
+    <input type="date" data-ri="${i}" data-f="date" value="${esc(r.date||"")}" aria-label="Date">
+    <input type="time" data-ri="${i}" data-f="time" value="${esc(r.time||"")}" aria-label="Time">
+    <select data-ri="${i}" data-f="result"><option value="pending" ${r.result==="pending"||!r.result?"selected":""}>Pending</option><option value="cleared" ${r.result==="cleared"?"selected":""}>Cleared</option><option value="rejected" ${r.result==="rejected"?"selected":""}>Rejected</option><option value="done" ${r.result==="done"?"selected":""}>Done</option></select>
+    <input type="text" class="wide" data-ri="${i}" data-f="note" value="${esc(r.note||"")}" placeholder="Questions asked, platform, how it went…" aria-label="Note">
+    <button type="button" class="iconbtn" data-rdel="${i}" title="Remove">✕</button></div>`).join("");
+  $("#roundsHint").hidden=!!draft.rounds.length;
+}
+function renderRems(){
+  $("#rems").innerHTML=draft.reminders.map((r,i)=>`<div class="rrow rem">
+    <input type="date" data-mi="${i}" data-f="date" value="${esc(r.date||"")}" aria-label="Reminder date">
+    <input type="text" data-mi="${i}" data-f="text" value="${esc(r.text||"")}" placeholder="Register on portal before 5pm" aria-label="Reminder">
+    <input type="checkbox" data-mi="${i}" data-f="done" ${r.done?"checked":""} title="Done">
+    <button type="button" class="iconbtn" data-mdel="${i}" title="Remove">✕</button></div>`).join("")||`<div class="hint">No reminders yet.</div>`;
+}
+function renderResumeBox(){
+  const b=$("#resumeBox"); const r=draft.resume, f=draft.resumeFile;
+  if(f) b.innerHTML=`<span>New: <b>${esc(f.name)}</b> <span class="hint">${fmtSize(f.size)} · uploads on save</span></span><button type="button" class="btn ghost" data-rclear>Undo</button>`;
+  else if(r) b.innerHTML=`<span>${r.kind==="label"?"Noted as: "+esc(r.name):`Attached: ${resumeLinkHTML(r,"draft")}`}</span><button type="button" class="btn ghost" data-rremove>Remove</button>`;
+  else b.innerHTML=`<span class="hint">No resume attached. ${assets||store?.sb?"Stored with your tracker.":"Stored in this browser."}</span>`;
+}
+function eligHint(){ const el=eligibility({gpa:F("gpa").value,branches:F("branches").value}); $("#eligHint").innerHTML=el.map(e=>`<span class="hint ${e.c}" style="margin-right:12px">${e.t}</span>`).join("")||(profile.cgpa?"":`<span class="hint">Set your CGPA and branch under Profile to check eligibility automatically.</span>`); }
+function dupCheck(){ const id=F("id").value, k=norm(F("company").value); const d=apps.find(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d; if(d) h.innerHTML=`Already tracking <b>${esc(d.company)}</b>${d.role?" ("+esc(d.role)+")":""}. Save anyway for a different role, or <a href="#" data-edit="${d.id}">edit that one</a>.`; }
+function openForm(a){
+  form.reset(); $("#sug").hidden=true; $("#dupHint").hidden=true;
+  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null};
+  $("#dlgTitle").textContent=a?.id?"Edit "+a.company:"Add a company"; $("#dlgSub").hidden=!!a?.id;
+  $("#delBtn").hidden=!a?.id;
+  F("id").value=a?.id||""; F("company").value=a?.company||""; F("role").value=a?.role||""; F("tier").value=a?.tier||""; F("jobtype").value=a?.jobType||"";
+  F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
+  F("stipend").value=a?.stipend??""; F("base").value=a?.base??""; F("ctc").value=a?.ctc??""; F("branches").value=a?.branches||""; F("gpa").value=a?.gpa||""; F("deadline").value=a?.deadline||"";
+  F("status").value=a?.status||"notapplied"; F("outcome").value=a?.outcome||"";
+  F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
+  F("resume").value=""; F("contact").value=a?.contact||""; F("notes").value=a?.notes||""; F("archived").checked=!!a?.archived;
+  renderPipeline(); renderStars(); renderRounds(); renderRems(); renderResumeBox(); eligHint(); showPrev(F("company").value);
+  dlg.showModal(); $(".mform").scrollTop=0; setTimeout(()=>F(a?.id?"role":"company").focus(),50);
+}
+function showPrev(name,opts={}){
+  const p=$("#mprev"); const hit=findPrev(name);
+  if(!hit){ p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${name?esc(name)+" didn't visit last year":"How did it go last year?"}</h2><p class="nohit">${name?"No record in the 2026 sheet — probably new for your batch. Fill in the numbers yourself and they'll be here for next year.":"Roles, stipend, base/CTC, OA and interview dates, how many got placed and the GPA cutoff appear here as you type a company name."}</p>`; $("#roleList").innerHTML=""; return; }
+  $("#roleList").innerHTML=hit.hits.flatMap(h=>h.roles.map(r=>r.role)).filter(Boolean).map(r=>`<option value="${esc(r)}">`).join("");
+  p.innerHTML=`<div class="eyebrow">Batch of 2026 · last year</div><h2>${esc(hit.name)} <span class="tag prev">visited ${hit.hits.length>1?hit.hits.length+"×":"✓"}</span></h2>`+
+    hit.hits.map(h=>`<div class="pmeta"><span class="tag tier">${esc(h.tier)}</span> ${h.branches?"· eligible: "+esc(h.branches):""}</div>`+
+      h.roles.map(r=>`<div class="prole"><div class="ph"><b>${esc(r.role||"(role not listed)")}</b><button type="button" class="btn xs" data-use='${esc(JSON.stringify({tier:h.tier,role:r.role,stipend:r.stipend,base:r.base,ctc:r.ctc,gpa:r.gpa,branches:r.branches||h.branches}))}'>Use these numbers</button></div>
+        <div class="stats">
+          <div>Stipend<b>${r.stipend!=null?(typeof r.stipend==="number"?fmtMoney(r.stipend)+"/mo":esc(r.stipend)):"—"}</b></div>
+          <div>Base<b>${r.base!=null?esc(r.base)+(typeof r.base==="number"?" LPA":""):"—"}</b></div>
+          <div>CTC<b>${r.ctc!=null?esc(r.ctc)+(typeof r.ctc==="number"?" LPA":""):"—"}</b></div>
+          <div>GPA cutoff<b>${esc(r.gpa??"—")}</b></div>
+          <div>PPT<b>${esc(r.ppt??"—")}</b></div><div>OA<b>${esc(r.oa??"—")}</b></div><div>Interview<b>${esc(r.interview??"—")}</b></div><div>Placed<b>${placedStr(r)}</b></div>
+        </div>${r.note?`<div class="pn">${esc(r.note)}</div>`:""}</div>`).join("")).join("");
+  if(opts.autofill){ const h=hit.hits[0], r=h.roles.find(r=>r.ctc||r.stipend)||h.roles[0]||{}; applyUse({tier:h.tier,role:r.role,stipend:r.stipend,base:r.base,ctc:r.ctc,gpa:r.gpa,branches:r.branches||h.branches},true); }
+}
+function applyUse(u,onlyEmpty){
+  const set=(id,v)=>{ if(v==null||v==="")return; const el=F(id); if(onlyEmpty&&el.value)return; el.value=typeof v==="number"?v:String(v); };
+  set("tier",u.tier); set("role",u.role); set("branches",u.branches); set("gpa",u.gpa);
+  set("stipend",typeof u.stipend==="number"?u.stipend:null); set("base",typeof u.base==="number"?u.base:null); set("ctc",typeof u.ctc==="number"?u.ctc:null);
+  if(!F("jobtype").value){ F("jobtype").value = u.tier==="Internship Only"?"Intern":u.tier==="Summer PPO"?"PPO":(typeof u.stipend==="number"&&typeof u.ctc==="number")?"Intern + FTE":typeof u.ctc==="number"?"FTE":""; }
+  eligHint();
+}
+function collect(){
+  const num=v=>v===""?null:+v; const old=apps.find(a=>a.id===F("id").value);
+  return { id:F("id").value||uid(), createdAt:old?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString(),
+    company:F("company").value.trim(), role:F("role").value.trim(), tier:F("tier").value, jobType:F("jobtype").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
+    stipend:num(F("stipend").value), base:num(F("base").value), ctc:num(F("ctc").value), branches:F("branches").value.trim(), gpa:F("gpa").value.trim(), deadline:F("deadline").value,
+    status:F("status").value, outcome:F("outcome").value.trim(),
+    rounds:draft.rounds.filter(r=>r.type||r.date).map(r=>({id:r.id||uid(),type:r.type||"Other",date:r.date||"",time:r.time||"",result:r.result||"pending",note:r.note||""})),
+    reminders:draft.reminders.filter(r=>r.date||r.text).map(r=>({id:r.id||uid(),date:r.date||"",text:r.text||"",done:!!r.done})),
+    offer:{ctc:num(F("offerctc").value),by:F("offerby").value,accepted:F("accepted").value},
+    resume:draft.resume, contact:F("contact").value.trim(), notes:F("notes").value.trim(), archived:F("archived").checked };
+}
+let toastT; function toast(m,undo){ const t=$("#toast"); t.innerHTML=esc(m)+(undo?` <button type="button" id="undoBtn">Undo</button>`:""); if(undo) $("#undoBtn").onclick=()=>{undo();t.classList.remove("show");}; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),undo?6000:2200); }
+
+// ---------- settings ----------
+const sdlg=$("#sdlg"); const S=id=>document.getElementById("s-"+id);
+function openSettings(){ S("name").value=profile.name||""; S("branch").value=profile.branch||""; S("cgpa").value=profile.cgpa??""; S("target").value=profile.target??""; S("tenth").value=profile.tenth||""; sdlg.showModal(); }
+async function download(filename,data,type){
+  try{ const dl=window.claude?.use ? await window.claude.use("downloads") : null; if(dl){ await dl.save({filename,data}); toast("Saved "+filename); return; } }catch(e){ if(e?.code==="cancelled") return; }
+  try{ const blob=new Blob([data],{type}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast("Downloading "+filename); }
+  catch{ try{ await navigator.clipboard.writeText(data); toast("Download blocked here — copied to clipboard instead"); }catch{ toast("Couldn't export in this viewer"); } }
+}
+function toCSV(){
+  const cols=["company","role","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
+  const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const lines=[cols.join(",")];
+  for(const a of apps) lines.push(cols.map(c=>cell(c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:a[c])).join(","));
+  return lines.join("\r\n");
+}
+
+// ---------- events ----------
+function switchView(v){ view=v; document.querySelectorAll("nav button").forEach(b=>{ if(b.dataset.view===v) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); }); $("#v-tracker").hidden=v!=="tracker"; $("#v-ref").hidden=v!=="ref"; if(v==="ref") renderRef(); LS("pt27.view",v); }
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));
+$("#addBtn").addEventListener("click",()=>openForm(null));
+$("#settingsBtn").addEventListener("click",openSettings);
+$("#cancelBtn").addEventListener("click",()=>dlg.close()); $("#sCancel").addEventListener("click",()=>sdlg.close());
+$("#q").addEventListener("input",e=>{q=e.target.value;renderList();});
+$("#sort").addEventListener("change",e=>{sortBy=e.target.value;renderList();});
+$("#showArch").addEventListener("change",e=>{showArch=e.target.checked;renderChips();renderList();});
+$("#modeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-m]"); if(b){mode=b.dataset.m;LS("pt27.mode",mode);renderList();}});
+$("#statusChips").addEventListener("click",e=>{const b=e.target.closest("[data-k]"); if(b){statusFilter=b.dataset.k;renderChips();renderList();}});
+$("#rq").addEventListener("input",e=>{refQ=e.target.value;renderRef();});
+$("#branchSel").addEventListener("change",e=>{refBranch=e.target.value;renderRef();});
+$("#hideTracked").addEventListener("change",e=>{hideTracked=e.target.checked;renderRef();});
+$("#tierChips").addEventListener("click",e=>{const b=e.target.closest("[data-t]"); if(b){refTier=b.dataset.t;renderRef();}});
+$("#refTbl").addEventListener("click",e=>{
+  const t=e.target.closest("[data-track]"); if(t){ openForm({company:t.dataset.track}); showPrev(t.dataset.track,{autofill:true}); dupCheck(); switchView("tracker"); return; }
+  const n=e.target.closest("td.note span"); if(n) n.classList.toggle("open");
+});
+$("#listArea").addEventListener("click",async e=>{
+  const v=e.target.closest("[data-view]"); if(v){e.preventDefault();switchView(v.dataset.view);return;}
+  const rl=e.target.closest("[data-resume]"); if(rl){ e.preventDefault(); const a=apps.find(x=>x.id===rl.dataset.resume); openResume(a?.resume); return; }
+  const th=e.target.closest("th[data-k]"); if(th){ if(tblSort.k===th.dataset.k) tblSort.asc=!tblSort.asc; else tblSort={k:th.dataset.k,asc:true}; renderList(); return; }
+  const rm=e.target.closest("[data-rem]"); if(rm){ const a=apps.find(x=>x.id===rm.dataset.id); const r=a?.reminders.find(r=>r.id===rm.dataset.rem); if(r){ const copy=JSON.parse(JSON.stringify(a)); copy.reminders.find(x=>x.id===r.id).done=!r.done; copy.updatedAt=new Date().toISOString(); await store.save(copy); toast(r.done?"Reminder reopened":"Reminder done"); } return; }
+  const b=e.target.closest("[data-act=edit]"); if(b){ const a=apps.find(x=>x.id===b.dataset.id); if(a) openForm(a); }
+});
+$("#listArea").addEventListener("change",async e=>{
+  const s=e.target.closest("[data-quick]"); if(!s) return; const a=apps.find(x=>x.id===s.dataset.quick); if(!a) return;
+  await store.save({...a,status:s.value,updatedAt:new Date().toISOString()}); toast(`${a.company} → ${SLABEL[s.value]}`);
+});
+$("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline();}});
+$("#starpick").addEventListener("click",e=>{const b=e.target.closest("[data-v]"); if(b){F("priority").value=F("priority").value==b.dataset.v?0:b.dataset.v;renderStars();}});
+$("#mprev").addEventListener("click",e=>{const b=e.target.closest("[data-use]"); if(b){applyUse(JSON.parse(b.dataset.use),false);toast("Filled from 2026 data — edit anything that changed");}});
+$("#addRound").addEventListener("click",()=>{ const last=draft.rounds[draft.rounds.length-1]; const next=ROUND_TYPES[Math.min(ROUND_TYPES.length-2,(last?ROUND_TYPES.indexOf(last.type):-1)+1)]; draft.rounds.push({id:uid(),type:next||"OA",date:"",time:"",result:"pending",note:""}); renderRounds(); const el=$("#rounds .rrow:last-child input[type=date]"); el&&el.focus(); });
+$("#addRem").addEventListener("click",()=>{ draft.reminders.push({id:uid(),date:"",text:"",done:false}); renderRems(); const el=$("#rems .rrow:last-child input[type=date]"); el&&el.focus(); });
+$("#rounds").addEventListener("input",e=>{const el=e.target; if(el.dataset.ri!=null) draft.rounds[+el.dataset.ri][el.dataset.f]=el.value;});
+$("#rounds").addEventListener("click",e=>{const b=e.target.closest("[data-rdel]"); if(b){draft.rounds.splice(+b.dataset.rdel,1);renderRounds();}});
+$("#rems").addEventListener("input",e=>{const el=e.target; if(el.dataset.mi!=null) draft.reminders[+el.dataset.mi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;});
+$("#rems").addEventListener("click",e=>{const b=e.target.closest("[data-mdel]"); if(b){draft.reminders.splice(+b.dataset.mdel,1);renderRems();}});
+["gpa","branches"].forEach(id=>F(id).addEventListener("input",eligHint));
+$("#dupHint").addEventListener("click",e=>{const a=e.target.closest("[data-edit]"); if(a){e.preventDefault(); const x=apps.find(y=>y.id===a.dataset.edit); if(x) openForm(x);}});
+// company autocomplete
+const sug=$("#sug"); let sugIdx=-1;
+F("company").addEventListener("input",e=>{
+  const v=e.target.value; const m=searchPrev(v); sugIdx=-1; const exact=m.length===1&&norm(m[0].name)===norm(v);
+  if(!m.length||exact){ sug.hidden=true; } else { sug.innerHTML=m.map(x=>`<button type="button" data-pick="${esc(x.name)}"><span>${esc(x.name)}</span><span class="tags">${x.hits.map(h=>`<span class="tag tier">${esc(h.tier)}</span>`).join("")}</span></button>`).join(""); sug.hidden=false; }
+  showPrev(v,{autofill:exact&&!F("id").value}); dupCheck();
+});
+F("company").addEventListener("keydown",e=>{
+  if(sug.hidden) return; const items=[...sug.querySelectorAll("button")];
+  if(e.key==="ArrowDown"){e.preventDefault();sugIdx=Math.min(items.length-1,sugIdx+1);} else if(e.key==="ArrowUp"){e.preventDefault();sugIdx=Math.max(0,sugIdx-1);}
+  else if(e.key==="Enter"&&sugIdx>=0){e.preventDefault();items[sugIdx].click();return;} else if(e.key==="Escape"){sug.hidden=true;return;} else return;
+  items.forEach((b,i)=>b.classList.toggle("on",i===sugIdx));
+});
+sug.addEventListener("mousedown",e=>{const b=e.target.closest("[data-pick]"); if(b){e.preventDefault(); F("company").value=b.dataset.pick; sug.hidden=true; showPrev(b.dataset.pick,{autofill:true}); dupCheck(); toast("Pre-filled from last year's numbers");}});
+F("company").addEventListener("blur",()=>setTimeout(()=>sug.hidden=true,150));
+form.addEventListener("submit",async e=>{
+  e.preventDefault(); if(!F("company").value.trim()){ F("company").focus(); return; }
+  $("#saveBtn").disabled=true;
+  try{
+    if(draft.resumeFile){ $("#saveBtn").textContent="Uploading…"; const old=draft.resume; draft.resume=await storeResume(draft.resumeFile); draft.resumeFile=null; if(old&&old.kind!=="label") await deleteResume(old); }
+    if(draft.resumeRemoved){ await deleteResume(draft.resumeRemoved); draft.resumeRemoved=null; }
+    const a=collect(); await store.save(a); dlg.close(); toast("Saved "+a.company); }
+  catch(err){ toast("Couldn't save: "+(err?.message||err?.code||"unknown error")); }
+  finally{ $("#saveBtn").disabled=false; $("#saveBtn").textContent="Save"; }
+});
+F("resume").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; if(f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name)){ toast("Please choose a PDF"); e.target.value=""; return; } draft.resumeFile=f; renderResumeBox(); });
+$("#resumeBox").addEventListener("click",e=>{
+  if(e.target.closest("[data-rclear]")){ draft.resumeFile=null; F("resume").value=""; renderResumeBox(); return; }
+  if(e.target.closest("[data-rremove]")){ if(draft.resume?.kind!=="label") draft.resumeRemoved=draft.resume; draft.resume=null; renderResumeBox(); return; }
+  const l=e.target.closest("[data-resume]"); if(l){ e.preventDefault(); openResume(draft.resume); }
+});
+$("#delBtn").addEventListener("click",async()=>{
+  const id=F("id").value; const a=apps.find(x=>x.id===id); if(!a) return;
+  const copy=JSON.parse(JSON.stringify(a)); await store.remove(id); dlg.close();
+  let restored=false;
+  toast("Removed "+a.company,async()=>{ restored=true; await store.save(copy); toast("Restored "+copy.company); });
+  setTimeout(()=>{ if(!restored&&copy.resume&&copy.resume.kind!=="label") deleteResume(copy.resume); },6500);
+});
+$("#sform").addEventListener("submit",async e=>{ e.preventDefault(); await store.saveProfile({name:S("name").value.trim(),branch:S("branch").value,cgpa:S("cgpa").value===""?null:+S("cgpa").value,target:S("target").value===""?null:+S("target").value,tenth:S("tenth").value.trim()}); sdlg.close(); toast("Profile saved"); render(); });
+$("#expJson").addEventListener("click",()=>download(`placement-tracker-${todayISO()}.json`,JSON.stringify({exportedAt:new Date().toISOString(),profile,applications:apps},null,1),"application/json"));
+$("#expCsv").addEventListener("click",()=>download(`placement-tracker-${todayISO()}.csv`,"﻿"+toCSV(),"text/csv"));
+$("#impBtn").addEventListener("click",()=>$("#impFile").click());
+$("#impFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const j=JSON.parse(await f.text()); const inc=Array.isArray(j)?j:j.applications||[]; let n=0;
+    for(const raw of inc){ const a=migrate({...raw}); a.id ||= uid(); const ex=apps.find(x=>x.id===a.id||(norm(x.company)===norm(a.company)&&norm(x.role)===norm(a.role)));
+      if(ex){ if((a.updatedAt||"")>(ex.updatedAt||"")){ a.id=ex.id; await store.save(a); n++; } } else { await store.save(a); n++; } }
+    if(j.profile&&!profile.cgpa) await store.saveProfile(j.profile);
+    toast(`Imported ${n} compan${n===1?"y":"ies"}`); render(); }
+  catch{ toast("That file isn't a tracker export"); }
+  e.target.value="";
+});
+document.addEventListener("keydown",e=>{ if((e.metaKey||e.ctrlKey)&&e.key==="k"){ e.preventDefault(); switchView("tracker"); $("#q").focus(); } if(e.key==="n"&&!dlg.open&&!sdlg.open&&!/input|textarea|select/i.test(e.target.tagName)){ openForm(null); } });
+
+// ---------- boot ----------
+renderRefStrip(); render();
+if(LS("pt27.view")==="ref") switchView("ref");
+initStore();
+</script>

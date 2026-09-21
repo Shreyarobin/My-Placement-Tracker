@@ -251,6 +251,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .rolelist .ro.applied .tick{color:var(--green)}
 @media (max-width:700px){.rrow{grid-template-columns:1fr 1fr;padding:8px;border:1px solid var(--line);border-radius:var(--r)}.rrow .wide{grid-column:1/-1}}
 .rrow input,.rrow select{padding:5px 8px;font-size:13px}
+.typecell{display:flex;flex-direction:column;gap:4px;min-width:0}
 .rrow input[type=checkbox]{width:auto;justify-self:center}
 .mactions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--paper);padding-top:12px;border-top:1px solid var(--line)}
 .mprev h2{font-size:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
@@ -398,6 +399,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
             <div class="field"><label for="f-rejstage">Rejected at</label><select id="f-rejstage"><option value="">—</option><option>Resume shortlist</option><option>OA</option><option>Aptitude</option><option>Group discussion</option><option>Technical R1</option><option>Technical R2</option><option>Technical R3</option><option>Managerial</option><option>HR</option><option>After offer</option><option>Withdrew myself</option><option>Other</option></select></div>
             <div class="field"><label for="f-rejdate">On</label><input id="f-rejdate" type="date"></div>
           </div>
+          <div class="field" id="f-rejotherWrap" hidden><label for="f-rejother">Which stage exactly?</label><input id="f-rejother" type="text" placeholder="e.g. Case study presentation"></div>
           <div class="field"><label for="f-rejreason" id="f-rejlabel">Why — for future reference</label><textarea id="f-rejreason" placeholder="What went wrong, what they asked, what to prepare next time…"></textarea>
             <div class="chips" id="skipReasons" hidden></div></div>
         </div>
@@ -482,6 +484,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
       <div class="field"><label for="r-stage">Rejected at</label><select id="r-stage"><option value="">—</option><option>Resume shortlist</option><option>OA</option><option>Aptitude</option><option>Group discussion</option><option>Technical R1</option><option>Technical R2</option><option>Technical R3</option><option>Managerial</option><option>HR</option><option>After offer</option><option>Withdrew myself</option><option>Other</option></select></div>
       <div class="field"><label for="r-date">On</label><input id="r-date" type="date"></div>
     </div>
+    <div class="field" id="r-otherWrap" hidden><label for="r-other">Which stage exactly?</label><input id="r-other" type="text" placeholder="e.g. Case study presentation"></div>
     <div class="field"><label for="r-reason">Why — for future reference</label><textarea id="r-reason" placeholder="What went wrong, what they asked, what to prepare next time…"></textarea></div>
     <div class="mactions" style="border:0;padding-top:4px"><button type="button" class="btn" id="r-skip">Skip</button><button type="submit" class="btn primary">Save</button></div>
   </form>
@@ -517,6 +520,8 @@ const OUT = new Set(["rejected","withdrawn","skipped","ineligible"]);
 const REASONED = new Set(["rejected","withdrawn","skipped"]);   // statuses that carry a reason note
 const SRANK = {notapplied:0,applied:1,oa:2,shortlisted:3,interview:4,offer:5,accepted:5,rejected:-1,withdrawn:-1,skipped:-1,ineligible:-1};
 const OUT_LABEL = {rejected:"Rejected",withdrawn:"Withdrew",skipped:"Didn't apply"};
+const roundLabel = r => r.type==="Other" && r.otherType ? r.otherType : (r.type||"Other");
+const stageLabel = rj => rj?.stage==="Other" && rj.stageOther ? rj.stageOther : (rj?.stage||"");
 const ROUND_TYPES = ["PPT","Application","OA","Aptitude","Group discussion","Technical R1","Technical R2","Technical R3","Managerial","HR","Offer","Other"];
 const ROUND_KEY = t => /oa|aptitude/i.test(t)?"oa":/ppt/i.test(t)?"ppt":/hr/i.test(t)?"hr":/tech|managerial|discussion/i.test(t)?"tech":/offer/i.test(t)?"offer":"other";
 const $ = s => document.querySelector(s);
@@ -674,7 +679,7 @@ function resumeLinkHTML(r,id){ if(!r) return ""; if(r.kind==="label") return `<s
 // ---------- derived ----------
 function events(a){
   const ev=[];
-  for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:r.type,pending:r.result==="pending"||!r.result,a});
+  for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:roundLabel(r),pending:r.result==="pending"||!r.result,a});
   for(const r of a.reminders) if(r.date&&!r.done) ev.push({d:r.date,k:"rem",l:"Reminder",t:r.text,a,rid:r.id});
   if(a.deadline && SRANK[a.status]===0) ev.push({d:a.deadline,k:"deadline",l:"Apply by",a});
   if(a.offer?.by && a.status==="offer") ev.push({d:a.offer.by,k:"deadline",l:"Accept offer by",a});
@@ -751,7 +756,7 @@ function cardHTML(a,compact){
   const rounds=[...a.rounds].sort((x,y)=>(x.date||"").localeCompare(y.date||""));
   const rems=a.reminders.filter(r=>!r.done||!compact);
   return `<article class="card ${a.archived?"archived":""}" data-id="${a.id}">
-    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · not applied yet`:"No roles listed"}${a.location?` · ${esc(a.location)}`:""}</div></div>
+    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · ${NO_APPLY.has(a.status)?"considered":"not applied yet"}`:"No roles listed"}${a.location?` · ${esc(a.location)}`:""}</div></div>
       <div style="text-align:right">${a.priority?`<div class="stars">${"★".repeat(a.priority)}</div>`:""}<span class="dot ${a.status}"></span>${statusSelect(a)}</div></div>
     <div class="tags">${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:""}${el.map(e=>`<span class="tag ${e.c}">${e.t}</span>`).join("")}</div>
     ${a.roles.length?`<div class="rolelist">${(compact?a.roles.filter(r=>r.applied):a.roles).map(r=>`<div class="ro ${r.applied?"applied":""}"><span class="tick">${r.applied?"✓":"○"}</span><span style="flex:1">${esc(r.title||"(untitled)")}${r.jobType?` <span class="hint">${esc(r.jobType)}</span>`:""}</span><span class="m">${[r.ctc?r.ctc+" LPA":"",r.stipend?fmtMoney(r.stipend)+"/mo":"",r.gpa?"cutoff "+esc(r.gpa):""].filter(Boolean).join(" · ")}</span></div>`).join("")}</div>`:""}
@@ -760,9 +765,9 @@ function cardHTML(a,compact){
       ${a.deadline&&SRANK[a.status]===0?`<dt>Apply by</dt><dd class="num">${fmtD(a.deadline)} <span style="color:var(--ink3)">${rel(daysFrom(a.deadline))}</span></dd>`:""}
       ${(a.status==="offer"||a.status==="accepted")&&(a.offer?.ctc||a.offer?.by)?`<dt>Offer</dt><dd class="num">${a.offer.ctc?a.offer.ctc+" LPA":""}${a.offer.by?` · accept by ${fmtD(a.offer.by)}`:""}${a.offer.accepted==="yes"?" · accepted":a.offer.accepted==="no"?" · declined":""}</dd>`:""}
     </dl>
-    ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(r.type)}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${r.result||"pending"}">${esc(r.result||"pending")}</span></div>`).join("")}</div>`:""}
+    ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(roundLabel(r))}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${r.result||"pending"}">${esc(r.result||"pending")}</span></div>`).join("")}</div>`:""}
     ${rems.map(r=>{const n=daysFrom(r.date); const cls=r.done?"done":(n<0?"over":""); return `<div class="rem ${cls}"><b class="num">${fmtD(r.date)}</b><span style="flex:1">${esc(r.text||"Reminder")}</span><small>${r.done?"done":rel(n)}</small><button class="btn xs ghost" data-rem="${r.id}" data-id="${a.id}" title="${r.done?"Reopen":"Mark done"}">${r.done?"↺":"✓"}</button></div>`;}).join("")}
-    ${REASONED.has(a.status)&&(a.rejection?.reason||a.rejection?.stage)?`<div class="notes rej ${a.status==="skipped"?"skip":""}"><b>${OUT_LABEL[a.status]}${a.rejection.stage?" at "+esc(a.rejection.stage):""}${a.rejection.date?" · "+fmtD(a.rejection.date):""}</b>${a.rejection.reason&&!compact?`<br>${esc(a.rejection.reason)}`:""}</div>`:""}
+    ${REASONED.has(a.status)&&(a.rejection?.reason||a.rejection?.stage)?`<div class="notes rej ${a.status==="skipped"?"skip":""}"><b>${OUT_LABEL[a.status]}${a.rejection.stage?" at "+esc(stageLabel(a.rejection)):""}${a.rejection.date?" · "+fmtD(a.rejection.date):""}</b>${a.rejection.reason&&!compact?`<br>${esc(a.rejection.reason)}`:""}</div>`:""}
     ${a.outcome&&!compact?`<div class="notes"><b>Latest:</b> ${esc(a.outcome)}</div>`:""}
     ${a.notes&&!compact?`<div class="notes">${esc(a.notes)}</div>`:""}
     <div class="actions">${a.link?`<a class="btn sm ghost" href="${esc(a.link)}" target="_blank" rel="noopener">Portal ↗</a>`:""}<button class="btn sm" data-act="edit" data-id="${a.id}">Edit</button></div>
@@ -864,7 +869,7 @@ function renderPipeline(){
 function renderStars(){ const v=+F("priority").value; document.querySelectorAll("#starpick button").forEach(b=>b.classList.toggle("on",+b.dataset.v<=v)); }
 function renderRounds(){
   $("#rounds").innerHTML=draft.rounds.map((r,i)=>`<div class="rrow">
-    <select data-ri="${i}" data-f="type">${ROUND_TYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select>
+    <div class="typecell"><select data-ri="${i}" data-f="type">${ROUND_TYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select>${r.type==="Other"?`<input type="text" data-ri="${i}" data-f="otherType" value="${esc(r.otherType||"")}" placeholder="Which round?" aria-label="Specify round">`:""}</div>
     <input type="date" data-ri="${i}" data-f="date" value="${esc(r.date||"")}" aria-label="Date">
     <input type="time" data-ri="${i}" data-f="time" value="${esc(r.time||"")}" aria-label="Time">
     <select data-ri="${i}" data-f="result"><option value="pending" ${r.result==="pending"||!r.result?"selected":""}>Pending</option><option value="cleared" ${r.result==="cleared"?"selected":""}>Cleared</option><option value="rejected" ${r.result==="rejected"?"selected":""}>Rejected</option><option value="done" ${r.result==="done"?"selected":""}>Done</option></select>
@@ -886,9 +891,12 @@ function renderResumeBox(){
   else b.innerHTML=`<span class="hint">No resume attached. ${assets||store?.sb?"Stored with your tracker.":"Stored in this browser."}</span>`;
 }
 const JOB_TYPES=[["",""],["FTE","FTE"],["Intern","Internship"],["Intern + FTE","Intern + FTE"],["PPO","Intern w/ PPO"]];
+// statuses where "did I apply for this role?" doesn't apply
+const NO_APPLY = new Set(["skipped","ineligible"]);
 function renderRoles(){
-  $("#roles").innerHTML=draft.roles.map((r,i)=>`<div class="rrow role ${r.applied?"applied":""}">
-    <label class="applied-lbl" title="I applied for this role"><input type="checkbox" data-oi="${i}" data-f="applied" ${r.applied?"checked":""}>${r.applied?"Applied":"Apply?"}</label>
+  const noApply=NO_APPLY.has(F("status").value);
+  $("#roles").innerHTML=draft.roles.map((r,i)=>`<div class="rrow role ${r.applied&&!noApply?"applied":""}">
+    ${noApply?`<span class="applied-lbl" style="color:var(--ink3)">Considered</span>`:`<label class="applied-lbl" title="I applied for this role"><input type="checkbox" data-oi="${i}" data-f="applied" ${r.applied?"checked":""}>${r.applied?"Applied":"Apply?"}</label>`}
     <input type="text" class="title" data-oi="${i}" data-f="title" value="${esc(r.title||"")}" placeholder="Role title" aria-label="Role title">
     <select class="type" data-oi="${i}" data-f="jobType" aria-label="Type">${JOB_TYPES.map(([v,l])=>`<option value="${v}" ${r.jobType===v?"selected":""}>${l||"Type…"}</option>`).join("")}</select>
     <button type="button" class="iconbtn" data-odel="${i}" title="Remove role">✕</button>
@@ -915,7 +923,7 @@ function openForm(a){
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
   F("branches").value=a?.branches||""; F("deadline").value=a?.deadline||"";
   F("status").value=a?.status||"notapplied"; F("outcome").value=a?.outcome||"";
-  F("rejstage").value=a?.rejection?.stage||""; F("rejdate").value=a?.rejection?.date||""; F("rejreason").value=a?.rejection?.reason||"";
+  F("rejstage").value=a?.rejection?.stage||""; F("rejdate").value=a?.rejection?.date||""; F("rejreason").value=a?.rejection?.reason||""; F("rejother").value=a?.rejection?.stageOther||""; $("#f-rejotherWrap").hidden=F("rejstage").value!=="Other";
   F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
   F("resume").value=""; F("contact").value=a?.contact||""; F("notes").value=a?.notes||""; F("archived").checked=!!a?.archived;
   renderPipeline(); renderStars(); renderRoles(); renderRounds(); renderRems(); renderResumeBox(); showPrev(F("company").value);
@@ -956,8 +964,8 @@ function collect(){
     branches:F("branches").value.trim(), deadline:F("deadline").value,
     roles:draft.roles.filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:r.id||uid(),title:(r.title||"").trim(),jobType:r.jobType||"",stipend:r.stipend===""||r.stipend==null?null:+r.stipend,base:r.base===""||r.base==null?null:+r.base,ctc:r.ctc===""||r.ctc==null?null:+r.ctc,gpa:(r.gpa||"").trim(),applied:!!r.applied})),
     status:F("status").value, outcome:F("outcome").value.trim(),
-    rejection:REASONED.has(F("status").value)?{stage:F("status").value==="skipped"?"":F("rejstage").value,date:F("rejdate").value,reason:F("rejreason").value.trim()}:(old?.rejection||null),
-    rounds:draft.rounds.filter(r=>r.type||r.date).map(r=>({id:r.id||uid(),type:r.type||"Other",date:r.date||"",time:r.time||"",result:r.result||"pending",note:r.note||""})),
+    rejection:REASONED.has(F("status").value)?{stage:F("status").value==="skipped"?"":F("rejstage").value,stageOther:F("rejstage").value==="Other"?F("rejother").value.trim():"",date:F("rejdate").value,reason:F("rejreason").value.trim()}:(old?.rejection||null),
+    rounds:draft.rounds.filter(r=>r.type||r.date).map(r=>({id:r.id||uid(),type:r.type||"Other",otherType:r.type==="Other"?(r.otherType||"").trim():"",date:r.date||"",time:r.time||"",result:r.result||"pending",note:r.note||""})),
     reminders:draft.reminders.filter(r=>r.date||r.text).map(r=>({id:r.id||uid(),date:r.date||"",text:r.text||"",done:!!r.done})),
     offer:{ctc:num(F("offerctc").value),by:F("offerby").value,accepted:F("accepted").value},
     resume:draft.resume, contact:F("contact").value.trim(), notes:F("notes").value.trim(), archived:F("archived").checked });
@@ -976,7 +984,7 @@ function toCSV(){
   const cols=["company","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","rejectedAt","reasonNote","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
   const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[cols.join(",")];
-  for(const a of apps) lines.push(cols.map(c=>cell(c==="rejectedAt"?[a.rejection?.stage,a.rejection?.date].filter(Boolean).join(" "):c==="reasonNote"?a.rejection?.reason:c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${r.type} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
+  for(const a of apps) lines.push(cols.map(c=>cell(c==="rejectedAt"?[stageLabel(a.rejection),a.rejection?.date].filter(Boolean).join(" "):c==="reasonNote"?a.rejection?.reason:c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${roundLabel(r)} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
   return lines.join("\r\n");
 }
 
@@ -1016,9 +1024,12 @@ for(const sel of ["#events","#alerts"]) $(sel).addEventListener("click",e=>{ con
 $("#listArea").addEventListener("change",async e=>{
   const s=e.target.closest("[data-quick]"); if(!s) return; const a=apps.find(x=>x.id===s.dataset.quick); if(!a) return;
   if(REASONED.has(s.value)){ askRejection(a,s.value); return; }
-  await store.save({...a,status:s.value,updatedAt:new Date().toISOString()}); toast(`${a.company} → ${SLABEL[s.value]}`);
+  const roles=JSON.parse(JSON.stringify(a.roles));
+  if(NO_APPLY.has(s.value)||s.value==="notapplied") roles.forEach(r=>r.applied=false);
+  else if(roles.length===1&&!roles[0].applied) roles[0].applied=true;
+  await store.save(deriveFromRoles({...a,roles,status:s.value,updatedAt:new Date().toISOString()})); toast(`${a.company} → ${SLABEL[s.value]}`);
 });
-$("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline(); if(!$("#rejectFs").hidden) setTimeout(()=>F("rejreason").focus(),50);}});
+$("#pipeline").addEventListener("click",e=>{const b=e.target.closest("[data-s]"); if(b){F("status").value=b.dataset.s;renderPipeline(); syncRolesToStatus(); if(!$("#rejectFs").hidden) setTimeout(()=>F("rejreason").focus(),50);}});
 $("#skipReasons").addEventListener("click",e=>{const b=e.target.closest("[data-skipr]"); if(b){ const t=F("rejreason"); t.value=t.value.trim()?t.value.trim().replace(/\.?$/,"")+"; "+b.dataset.skipr:b.dataset.skipr; t.focus(); }});
 // quick reason dialog (card dropdown → Rejected / Withdrawn / Didn't apply)
 const rdlg=$("#rdlg"); let rTarget=null;
@@ -1026,7 +1037,7 @@ function askRejection(a,status){
   rTarget={a,status}; const skip=status==="skipped";
   $("#rdlgTitle").textContent=(skip?"Not applying to ":status==="withdrawn"?"Withdrawing from ":"Rejected by ")+a.company;
   const R=id=>document.getElementById("r-"+id);
-  R("stage").value=a.rejection?.stage||(status==="withdrawn"?"Withdrew myself":""); R("date").value=a.rejection?.date||todayISO(); R("reason").value=a.rejection?.reason||"";
+  R("stage").value=a.rejection?.stage||(status==="withdrawn"?"Withdrew myself":""); R("date").value=a.rejection?.date||todayISO(); R("reason").value=a.rejection?.reason||""; R("other").value=a.rejection?.stageOther||""; $("#r-otherWrap").hidden=R("stage").value!=="Other";
   R("stage").closest(".field").hidden=skip; R("date").previousElementSibling.textContent=skip?"Decided on":"On";
   R("reason").previousElementSibling.textContent=skip?"Why didn't you apply? — for future reference":"Why — for future reference";
   R("reason").placeholder=skip?"e.g. 6 LPA with a 2-year bond, not worth blocking a Tier 2 slot":"What went wrong, what they asked, what to prepare next time…";
@@ -1034,10 +1045,13 @@ function askRejection(a,status){
 }
 async function commitRejection(withNote){
   const {a,status}=rTarget; rTarget=null; const R=id=>document.getElementById("r-"+id);
-  const rejection=withNote?{stage:status==="skipped"?"":R("stage").value,date:R("date").value,reason:R("reason").value.trim()}:(a.rejection||{stage:"",date:todayISO(),reason:""});
-  await store.save({...a,status,rejection,updatedAt:new Date().toISOString()}); rdlg.close(); toast(`${a.company} → ${SLABEL[status]}`);
+  const rejection=withNote?{stage:status==="skipped"?"":R("stage").value,stageOther:R("stage").value==="Other"?R("other").value.trim():"",date:R("date").value,reason:R("reason").value.trim()}:(a.rejection||{stage:"",date:todayISO(),reason:""});
+  const roles=JSON.parse(JSON.stringify(a.roles)); if(NO_APPLY.has(status)) roles.forEach(r=>r.applied=false); else if(roles.length===1) roles[0].applied=true;
+  await store.save(deriveFromRoles({...a,roles,status,rejection,updatedAt:new Date().toISOString()})); rdlg.close(); toast(`${a.company} → ${SLABEL[status]}`);
 }
 $("#rform").addEventListener("submit",e=>{e.preventDefault(); commitRejection(true);});
+$("#r-stage").addEventListener("change",e=>{ $("#r-otherWrap").hidden=e.target.value!=="Other"; if(e.target.value==="Other") $("#r-other").focus(); });
+F("rejstage").addEventListener("change",e=>{ $("#f-rejotherWrap").hidden=e.target.value!=="Other"; if(e.target.value==="Other") F("rejother").focus(); });
 $("#r-skip").addEventListener("click",()=>commitRejection(false));
 rdlg.addEventListener("cancel",e=>{ e.preventDefault(); if(rTarget){ rTarget=null; rdlg.close(); renderList(); } });
 $("#starpick").addEventListener("click",e=>{const b=e.target.closest("[data-v]"); if(b){F("priority").value=F("priority").value==b.dataset.v?0:b.dataset.v;renderStars();}});
@@ -1046,11 +1060,20 @@ $("#mprev").addEventListener("click",e=>{
   const b=e.target.closest("[data-use]"); if(b){ const n=applyUse(JSON.parse(b.dataset.use)); toast(n?"Role added — tick it once you apply":"That role is already in your list"); }
 });
 $("#addRole").addEventListener("click",()=>addRole({},true));
-$("#roles").addEventListener("input",e=>{const el=e.target; if(el.dataset.oi!=null){ draft.roles[+el.dataset.oi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value; if(el.type==="checkbox") renderRoles(); else eligHint(); }});
+$("#roles").addEventListener("input",e=>{const el=e.target; if(el.dataset.oi!=null){ draft.roles[+el.dataset.oi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;
+  if(el.type==="checkbox"){ if(el.checked&&F("status").value==="notapplied"){ F("status").value="applied"; renderPipeline(); toast("Status moved to Applied"); } renderRoles(); } else eligHint(); }});
+// keep roles and status consistent when the status changes
+function syncRolesToStatus(){
+  const s=F("status").value;
+  if(NO_APPLY.has(s)) draft.roles.forEach(r=>r.applied=false);
+  else if(SRANK[s]>=1||s==="rejected"||s==="withdrawn"){ if(draft.roles.length===1&&!draft.roles[0].applied){ draft.roles[0].applied=true; } }
+  else if(s==="notapplied") draft.roles.forEach(r=>r.applied=false);
+  renderRoles();
+}
 $("#roles").addEventListener("click",e=>{const b=e.target.closest("[data-odel]"); if(b){draft.roles.splice(+b.dataset.odel,1);renderRoles();}});
 $("#addRound").addEventListener("click",()=>{ const last=draft.rounds[draft.rounds.length-1]; const next=ROUND_TYPES[Math.min(ROUND_TYPES.length-2,(last?ROUND_TYPES.indexOf(last.type):-1)+1)]; draft.rounds.push({id:uid(),type:next||"OA",date:"",time:"",result:"pending",note:""}); renderRounds(); const el=$("#rounds .rrow:last-child input[type=date]"); el&&el.focus(); });
 $("#addRem").addEventListener("click",()=>{ draft.reminders.push({id:uid(),date:"",text:"",done:false}); renderRems(); const el=$("#rems .rrow:last-child input[type=date]"); el&&el.focus(); });
-$("#rounds").addEventListener("input",e=>{const el=e.target; if(el.dataset.ri!=null) draft.rounds[+el.dataset.ri][el.dataset.f]=el.value;});
+$("#rounds").addEventListener("input",e=>{const el=e.target; if(el.dataset.ri!=null){ draft.rounds[+el.dataset.ri][el.dataset.f]=el.value; if(el.dataset.f==="type"){ renderRounds(); const o=$(`#rounds [data-ri="${el.dataset.ri}"][data-f="otherType"]`); o&&o.focus(); } }});
 $("#rounds").addEventListener("click",e=>{const b=e.target.closest("[data-rdel]"); if(b){draft.rounds.splice(+b.dataset.rdel,1);renderRounds();}});
 $("#rems").addEventListener("input",e=>{const el=e.target; if(el.dataset.mi!=null) draft.reminders[+el.dataset.mi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;});
 $("#rems").addEventListener("click",e=>{const b=e.target.closest("[data-mdel]"); if(b){draft.reminders.splice(+b.dataset.mdel,1);renderRems();}});
@@ -1077,6 +1100,7 @@ form.addEventListener("submit",async e=>{
   try{
     if(draft.resumeFile){ $("#saveBtn").textContent="Uploading…"; const old=draft.resume; draft.resume=await storeResume(draft.resumeFile); draft.resumeFile=null; if(old&&old.kind!=="label") await deleteResume(old); }
     if(draft.resumeRemoved){ await deleteResume(draft.resumeRemoved); draft.resumeRemoved=null; }
+    syncRolesToStatus();
     const a=collect(); await store.save(a); dlg.close(); toast("Saved "+a.company); }
   catch(err){ toast("Couldn't save: "+(err?.message||err?.code||"unknown error")); }
   finally{ $("#saveBtn").disabled=false; $("#saveBtn").textContent="Save"; }

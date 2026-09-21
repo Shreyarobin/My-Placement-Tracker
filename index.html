@@ -318,7 +318,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
           <option value="ctc">Sort: CTC high → low</option>
           <option value="name">Sort: company A → Z</option>
         </select>
-        <label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="showArch"> Show archived</label>
+        <label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="showArch"> Show rejected &amp; archived</label>
       </div>
       <div class="chips" id="statusChips" style="margin-bottom:14px"></div>
       <div id="listArea"></div>
@@ -509,6 +509,7 @@ const STATUSES = [
   ["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"],["ineligible","Not eligible"]
 ];
 const SLABEL = Object.fromEntries(STATUSES);
+const OUT = new Set(["rejected","withdrawn","ineligible"]);
 const SRANK = {notapplied:0,applied:1,oa:2,shortlisted:3,interview:4,offer:5,accepted:5,rejected:-1,withdrawn:-1,ineligible:-1};
 const ROUND_TYPES = ["PPT","Application","OA","Aptitude","Group discussion","Technical R1","Technical R2","Technical R3","Managerial","HR","Offer","Other"];
 const ROUND_KEY = t => /oa|aptitude/i.test(t)?"oa":/ppt/i.test(t)?"ppt":/hr/i.test(t)?"hr":/tech|managerial|discussion/i.test(t)?"tech":/offer/i.test(t)?"offer":"other";
@@ -695,7 +696,8 @@ let view="tracker", mode=LS("pt27.mode")||"cards", statusFilter="all", q="", sor
 let refQ="", refTier="all", refBranch="", hideTracked=false, tblSort={k:"company",asc:true};
 
 function visibleApps(){
-  let list=apps.filter(a=>showArch||!a.archived);
+  // rejected / withdrawn / not-eligible stay recorded but leave the main list unless asked for
+  let list=apps.filter(a=>showArch||(!a.archived&&(!OUT.has(a.status)||statusFilter===a.status)));
   if(statusFilter!=="all") list=list.filter(a=>a.status===statusFilter);
   if(q){ const k=q.toLowerCase(); list=list.filter(a=>[a.company,a.role,a.notes,a.outcome,a.location,a.contact,...(a.rounds.map(r=>r.note))].join(" ").toLowerCase().includes(k)); }
   const cmp={
@@ -732,7 +734,7 @@ function renderStrip(){
   ].map(([l,v,c])=>`<div class="stat ${c}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
 }
 function renderChips(){
-  const live=apps.filter(a=>showArch||!a.archived); const cnt=s=>s==="all"?live.length:live.filter(a=>a.status===s).length;
+  const live=apps.filter(a=>showArch||!a.archived); const cnt=s=>s==="all"?live.filter(a=>showArch||!OUT.has(a.status)).length:live.filter(a=>a.status===s).length;
   $("#statusChips").innerHTML=[["all","All"],...STATUSES].filter(([k])=>k==="all"||cnt(k)||statusFilter===k).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${statusFilter===k}">${l}<span class="c">${cnt(k)}</span></button>`).join("");
 }
 function statusSelect(a){ return `<select class="statussel" data-quick="${a.id}" aria-label="Status">${STATUSES.map(([k,l])=>`<option value="${k}" ${a.status===k?"selected":""}>${l}</option>`).join("")}</select>`; }
@@ -762,11 +764,11 @@ function renderList(){
   const list=visibleApps(); const w=$("#listArea");
   document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
   if(!apps.length){ w.innerHTML=`<div class="empty"><h3>Nothing tracked yet</h3>Add the first company that opens for your batch, or browse the <a href="#" data-view="ref">2026 reference</a> and hit Track on the ones you expect back.</div>`; return; }
-  if(!list.length){ w.innerHTML=`<div class="empty">No companies match this filter.</div>`; return; }
+  if(!list.length){ const hidden=apps.filter(a=>!a.archived&&OUT.has(a.status)).length; w.innerHTML=`<div class="empty">${statusFilter==="all"&&!q&&hidden?`Nothing active right now. ${hidden} rejected / withdrawn compan${hidden===1?"y is":"ies are"} kept out of the way — use the <b>Rejected</b> chip or "Show rejected &amp; archived" to see them.`:"No companies match this filter."}</div>`; return; }
   if(mode==="cards"){ w.innerHTML=`<div class="cards">${list.map(a=>cardHTML(a,false)).join("")}</div>`; return; }
   if(mode==="board"){
     const cols=[["notapplied","To apply"],["applied","Applied"],["oa","OA done"],["shortlisted","Shortlisted"],["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected / out"]];
-    w.innerHTML=`<div class="board">${cols.map(([k,l])=>{const items=list.filter(a=>a.status===k||(k==="rejected"&&["withdrawn","ineligible"].includes(a.status))); return `<div class="col"><h4>${l}<span>${items.length}</span></h4><div style="display:flex;flex-direction:column;gap:8px">${items.map(a=>cardHTML(a,true)).join("")}</div></div>`;}).join("")}</div>`; return;
+    w.innerHTML=`<div class="board">${cols.map(([k,l])=>{const items=list.filter(a=>a.status===k||(k==="rejected"&&["withdrawn","ineligible"].includes(a.status))); if(k==="rejected"&&!items.length) return ""; return `<div class="col"><h4>${l}<span>${items.length}</span></h4><div style="display:flex;flex-direction:column;gap:8px">${items.map(a=>cardHTML(a,true)).join("")}</div></div>`;}).join("")}</div>`; return;
   }
   const cols=[["company","Company"],["role","Applied for"],["tier","Tier"],["status","Status"],["ctc","CTC"],["stipend","Stipend"],["gpa","Cutoff"],["next","Next date"],["priority","Priority"],["updatedAt","Updated"]];
   const rows=[...list].sort((a,b)=>{const k=tblSort.k; let x=k==="next"?nextDate(a)||"":a[k]??"", y=k==="next"?nextDate(b)||"":b[k]??""; if(typeof x==="number"||typeof y==="number"){x=+x||0;y=+y||0;} const c=x<y?-1:x>y?1:0; return tblSort.asc?c:-c;});

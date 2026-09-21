@@ -176,6 +176,10 @@ tr.inel td.co{color:var(--ink3)}
 .ev.over .d b,.ev.over .k{color:var(--red)} .ev.today .d b{color:var(--green)}
 .ev .k.oa{color:var(--navy)} .ev .k.interview,.ev .k.tech,.ev .k.hr{color:var(--plum)} .ev .k.ppt{color:var(--ink3)} .ev .k.deadline{color:var(--red)}
 .railempty{color:var(--ink3);font-size:13px}
+.ev{grid-template-columns:44px 1fr auto}
+.tickbtn{border:1px solid var(--line2);background:var(--paper);color:var(--ink2);border-radius:999px;padding:1px 9px;font-size:12px;cursor:pointer;line-height:1.5;white-space:nowrap;align-self:center}
+.tickbtn:hover{background:var(--green-soft);color:var(--green);border-color:var(--green)}
+.alitem{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .funnel{display:flex;flex-direction:column;gap:6px}
 .frow{display:grid;grid-template-columns:78px 1fr 28px;gap:8px;align-items:center;font-size:12px}
 .frow .bar{height:8px;background:var(--wash);border-radius:4px;overflow:hidden}
@@ -664,7 +668,7 @@ function resumeLinkHTML(r,id){ if(!r) return ""; if(r.kind==="label") return `<s
 function events(a){
   const ev=[];
   for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:r.type,pending:r.result==="pending"||!r.result,a});
-  for(const r of a.reminders) if(r.date&&!r.done) ev.push({d:r.date,k:"rem",l:"Reminder",t:r.text,a});
+  for(const r of a.reminders) if(r.date&&!r.done) ev.push({d:r.date,k:"rem",l:"Reminder",t:r.text,a,rid:r.id});
   if(a.deadline && SRANK[a.status]===0) ev.push({d:a.deadline,k:"deadline",l:"Apply by",a});
   if(a.offer?.by && a.status==="offer") ev.push({d:a.offer.by,k:"deadline",l:"Accept offer by",a});
   return ev;
@@ -712,8 +716,9 @@ function renderAlerts(){
   const over=[], today=[];
   for(const a of live) for(const e of events(a)){ const n=daysFrom(e.d); if(e.k==="rem"||e.k==="deadline"||e.pending){ if(n<0&&(e.k==="rem"||e.k==="deadline")) over.push({e,n}); else if(n===0) today.push({e,n}); } }
   let h="";
-  if(today.length) h+=`<div class="alert"><div><b>Today:</b> ${today.map(({e})=>`${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""}${e.time?" at "+esc(e.time):""}`).join(" · ")}</div></div>`;
-  if(over.length) h+=`<div class="alert red"><div><b>Overdue:</b> ${over.map(({e,n})=>`${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""} (${rel(n)})`).join(" · ")}</div></div>`;
+  const tick=e=>e.k==="rem"?` <button class="tickbtn" data-rem="${e.rid}" data-id="${e.a.id}" title="Mark reminder done">✓ done</button>`:"";
+  if(today.length) h+=`<div class="alert"><div><b>Today:</b> ${today.map(({e})=>`<span class="alitem">${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""}${e.time?" at "+esc(e.time):""}${tick(e)}</span>`).join(" · ")}</div></div>`;
+  if(over.length) h+=`<div class="alert red"><div><b>Overdue:</b> ${over.map(({e,n})=>`<span class="alitem">${esc(e.a.company)} — ${esc(e.l)}${e.t?": "+esc(e.t):""} (${rel(n)})${tick(e)}</span>`).join(" · ")}</div></div>`;
   if(!profile.cgpa&&!profile.branch&&apps.length) h+=`<div class="alert"><div>Add your <b>branch and CGPA</b> under Profile &amp; backup to get automatic eligibility checks on every company.</div></div>`;
   $("#alerts").innerHTML=h;
 }
@@ -776,7 +781,7 @@ function renderEvents(){
   const w=$("#events");
   if(!ev.length){ w.innerHTML=`<p class="railempty">Nothing in the next 45 days. Add rounds, deadlines or reminders and they'll appear here.</p>`; return; }
   w.innerHTML=ev.slice(0,14).map(e=>{const [y,m,d]=e.d.split("-"); const mon=new Date(e.d+"T00:00").toLocaleString("en",{month:"short"});
-    return `<div class="ev ${e.n<0?"over":e.n===0?"today":""}"><div class="d"><b>${d}</b>${mon}</div><div class="t"><span class="k ${e.k}">${esc(e.l)} · ${rel(e.n)}${e.time?" · "+esc(e.time):""}</span><br>${esc(e.a.company)}${e.a.role?` <small>${esc(e.a.role)}</small>`:""}${e.t?`<small>${esc(e.t)}</small>`:""}</div></div>`;}).join("");
+    return `<div class="ev ${e.n<0?"over":e.n===0?"today":""}"><div class="d"><b>${d}</b>${mon}</div><div class="t"><span class="k ${e.k}">${esc(e.l)} · ${rel(e.n)}${e.time?" · "+esc(e.time):""}</span><br>${esc(e.a.company)}${e.a.role?` <small>${esc(e.a.role)}</small>`:""}${e.t?`<small>${esc(e.t)}</small>`:""}</div>${e.k==="rem"?`<button class="tickbtn" data-rem="${e.rid}" data-id="${e.a.id}" title="Mark reminder done">✓</button>`:""}</div>`;}).join("");
 }
 function renderFunnel(){
   const live=apps.filter(a=>!a.archived); const stages=[["Applied",1],["OA",2],["Shortlisted",3],["Interview",4],["Offer",5]];
@@ -976,9 +981,16 @@ $("#listArea").addEventListener("click",async e=>{
   const v=e.target.closest("[data-view]"); if(v){e.preventDefault();switchView(v.dataset.view);return;}
   const rl=e.target.closest("[data-resume]"); if(rl){ e.preventDefault(); const a=apps.find(x=>x.id===rl.dataset.resume); openResume(a?.resume); return; }
   const th=e.target.closest("th[data-k]"); if(th){ if(tblSort.k===th.dataset.k) tblSort.asc=!tblSort.asc; else tblSort={k:th.dataset.k,asc:true}; renderList(); return; }
-  const rm=e.target.closest("[data-rem]"); if(rm){ const a=apps.find(x=>x.id===rm.dataset.id); const r=a?.reminders.find(r=>r.id===rm.dataset.rem); if(r){ const copy=JSON.parse(JSON.stringify(a)); copy.reminders.find(x=>x.id===r.id).done=!r.done; copy.updatedAt=new Date().toISOString(); await store.save(copy); toast(r.done?"Reminder reopened":"Reminder done"); } return; }
+  const rm=e.target.closest("[data-rem]"); if(rm){ toggleReminder(rm.dataset.id,rm.dataset.rem); return; }
   const b=e.target.closest("[data-act=edit]"); if(b){ const a=apps.find(x=>x.id===b.dataset.id); if(a) openForm(a); }
 });
+async function toggleReminder(appId,remId){
+  const a=apps.find(x=>x.id===appId); const r=a?.reminders.find(r=>r.id===remId); if(!r) return;
+  const copy=JSON.parse(JSON.stringify(a)); copy.reminders.find(x=>x.id===remId).done=!r.done; copy.updatedAt=new Date().toISOString();
+  await store.save(copy);
+  toast(r.done?"Reminder reopened":"Reminder done", r.done?null:()=>toggleReminder(appId,remId));
+}
+for(const sel of ["#events","#alerts"]) $(sel).addEventListener("click",e=>{ const b=e.target.closest("[data-rem]"); if(b) toggleReminder(b.dataset.id,b.dataset.rem); });
 $("#listArea").addEventListener("change",async e=>{
   const s=e.target.closest("[data-quick]"); if(!s) return; const a=apps.find(x=>x.id===s.dataset.quick); if(!a) return;
   if(s.value==="rejected"||s.value==="withdrawn"){ askRejection(a,s.value); return; }

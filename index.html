@@ -127,7 +127,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--navy);outline:none;bo
 .round{display:grid;grid-template-columns:64px 1fr auto;gap:8px;font-size:12.5px;align-items:baseline}
 .round .d{font-family:var(--mono);color:var(--ink2);font-size:12px}
 .round .r{font-size:11px;font-weight:600}
-.round .r.cleared{color:var(--green)} .round .r.rejected{color:var(--red)} .round .r.pending{color:var(--amber)}
+.round .r.cleared{color:var(--green)} .round .r.rejected{color:var(--red)} .round .r.pending{color:var(--amber)} .round .r.skipped{color:var(--ink3);font-weight:500}
 .rem{font-size:12.5px;background:var(--amber-soft);color:var(--amber);border-radius:var(--r);padding:6px 10px;display:flex;gap:8px;align-items:center}
 .rem.over{background:var(--red-soft);color:var(--red)}
 .rem.done{background:var(--wash);color:var(--ink3);text-decoration:line-through}
@@ -679,7 +679,7 @@ function resumeLinkHTML(r,id){ if(!r) return ""; if(r.kind==="label") return `<s
 // ---------- derived ----------
 function events(a){
   const ev=[];
-  for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:roundLabel(r),pending:r.result==="pending"||!r.result,a});
+  for(const r of a.rounds) if(r.date) ev.push({d:r.date,time:r.time,k:ROUND_KEY(r.type),l:roundLabel(r),pending:(r.result==="pending"||!r.result)&&!OUT.has(a.status),a});
   for(const r of a.reminders) if(r.date&&!r.done) ev.push({d:r.date,k:"rem",l:"Reminder",t:r.text,a,rid:r.id});
   if(a.deadline && SRANK[a.status]===0) ev.push({d:a.deadline,k:"deadline",l:"Apply by",a});
   if(a.offer?.by && a.status==="offer") ev.push({d:a.offer.by,k:"deadline",l:"Accept offer by",a});
@@ -753,7 +753,9 @@ function renderChips(){
 function statusSelect(a){ return `<select class="statussel" data-quick="${a.id}" aria-label="Status">${STATUSES.map(([k,l])=>`<option value="${k}" ${a.status===k?"selected":""}>${l}</option>`).join("")}</select>`; }
 function cardHTML(a,compact){
   const el=eligibility(a);
-  const rounds=[...a.rounds].sort((x,y)=>(x.date||"").localeCompare(y.date||""));
+  const rounds=a.rounds;   // shown in the order they were recorded
+  const out=OUT.has(a.status);
+  const resLabel=r=>{ const res=r.result||"pending"; if(res!=="pending") return [res,res]; if(!out) return ["pending","pending"]; return ["skipped", a.status==="skipped"||a.status==="ineligible"?"not attempted":"not reached"]; };
   const rems=a.reminders.filter(r=>!r.done||!compact);
   return `<article class="card ${a.archived?"archived":""}" data-id="${a.id}">
     <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · ${NO_APPLY.has(a.status)?"considered":"not applied yet"}`:"No roles listed"}${a.location?` · ${esc(a.location)}`:""}</div></div>
@@ -765,7 +767,7 @@ function cardHTML(a,compact){
       ${a.deadline&&SRANK[a.status]===0?`<dt>Apply by</dt><dd class="num">${fmtD(a.deadline)} <span style="color:var(--ink3)">${rel(daysFrom(a.deadline))}</span></dd>`:""}
       ${(a.status==="offer"||a.status==="accepted")&&(a.offer?.ctc||a.offer?.by)?`<dt>Offer</dt><dd class="num">${a.offer.ctc?a.offer.ctc+" LPA":""}${a.offer.by?` · accept by ${fmtD(a.offer.by)}`:""}${a.offer.accepted==="yes"?" · accepted":a.offer.accepted==="no"?" · declined":""}</dd>`:""}
     </dl>
-    ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(roundLabel(r))}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${r.result||"pending"}">${esc(r.result||"pending")}</span></div>`).join("")}</div>`:""}
+    ${rounds.length?`<div class="rounds">${rounds.slice(compact?-2:0).map(r=>`<div class="round"><span class="d">${fmtD(r.date)}${r.time?" "+esc(r.time):""}</span><span>${esc(roundLabel(r))}${r.note?` <span style="color:var(--ink3)">— ${esc(r.note)}</span>`:""}</span><span class="r ${resLabel(r)[0]}">${esc(resLabel(r)[1])}</span></div>`).join("")}</div>`:""}
     ${rems.map(r=>{const n=daysFrom(r.date); const cls=r.done?"done":(n<0?"over":""); return `<div class="rem ${cls}"><b class="num">${fmtD(r.date)}</b><span style="flex:1">${esc(r.text||"Reminder")}</span><small>${r.done?"done":rel(n)}</small><button class="btn xs ghost" data-rem="${r.id}" data-id="${a.id}" title="${r.done?"Reopen":"Mark done"}">${r.done?"↺":"✓"}</button></div>`;}).join("")}
     ${REASONED.has(a.status)&&(a.rejection?.reason||a.rejection?.stage)?`<div class="notes rej ${a.status==="skipped"?"skip":""}"><b>${OUT_LABEL[a.status]}${a.rejection.stage?" at "+esc(stageLabel(a.rejection)):""}${a.rejection.date?" · "+fmtD(a.rejection.date):""}</b>${a.rejection.reason&&!compact?`<br>${esc(a.rejection.reason)}`:""}</div>`:""}
     ${a.outcome&&!compact?`<div class="notes"><b>Latest:</b> ${esc(a.outcome)}</div>`:""}

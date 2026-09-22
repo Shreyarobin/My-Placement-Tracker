@@ -15,14 +15,40 @@
   --red:#a63d2f; --red-soft:#f7e4e0;
   --plum:#6a4a7a; --plum-soft:#efe7f3;
   --shadow:0 12px 32px rgba(28,31,35,.10), 0 1px 2px rgba(28,31,35,.06);
+  --ink-on:#ffffff; --header-bg:rgba(250,250,248,.92); --backdrop:rgba(28,31,35,.35);
   --serif:"Instrument Serif",Georgia,"Times New Roman",serif;
   --sans:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:6px;
 }
+/* dark palette: same hues, lifted for a dark ground */
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#14171a; --paper:#1b1f23; --wash:#22262b; --line:#2c3238; --line2:#3d444c;
+  --ink:#eceef0; --ink2:#a8b0b8; --ink3:#79828b;
+  --navy:#8fb3d9; --navy-soft:#1e2b3a;
+  --green:#6cc39a; --green-soft:#193026;
+  --amber:#d9a441; --amber-soft:#332816;
+  --red:#e0806e; --red-soft:#35211d;
+  --plum:#b79bd0; --plum-soft:#2b2336;
+  --shadow:0 12px 32px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3);
+  --ink-on:#14171a; --header-bg:rgba(20,23,26,.92); --backdrop:rgba(0,0,0,.55);
+}}
+:root[data-theme="dark"]{
+  --bg:#14171a; --paper:#1b1f23; --wash:#22262b; --line:#2c3238; --line2:#3d444c;
+  --ink:#eceef0; --ink2:#a8b0b8; --ink3:#79828b;
+  --navy:#8fb3d9; --navy-soft:#1e2b3a;
+  --green:#6cc39a; --green-soft:#193026;
+  --amber:#d9a441; --amber-soft:#332816;
+  --red:#e0806e; --red-soft:#35211d;
+  --plum:#b79bd0; --plum-soft:#2b2336;
+  --shadow:0 12px 32px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3);
+  --ink-on:#14171a; --header-bg:rgba(20,23,26,.92); --backdrop:rgba(0,0,0,.55);
+}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{color-scheme:light}
+@media (prefers-color-scheme: dark){ html:not([data-theme="light"]){color-scheme:dark} }
+html[data-theme="dark"]{color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;margin:0;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3,h4{font-family:var(--serif);font-weight:400;margin:0;line-height:1.1;text-wrap:balance;letter-spacing:-.01em}
@@ -32,7 +58,7 @@ a{color:var(--navy)}
 .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3);font-weight:600}
 
 /* ---------- header ---------- */
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(250,250,248,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--header-bg);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .hwrap{max-width:1280px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .brand{display:flex;align-items:baseline;gap:10px}
 .brand h1{font-size:24px}
@@ -50,8 +76,8 @@ nav button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink)}
 
 .btn{border:1px solid var(--line2);background:var(--paper);padding:7px 14px;border-radius:var(--r);cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;line-height:1.3;transition:background .12s,border-color .12s}
 .btn:hover{background:var(--wash);border-color:var(--ink3)}
-.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
-.btn.primary:hover{background:#000}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--ink-on)}
+.btn.primary:hover{filter:brightness(1.15)}
 .btn.danger{color:var(--red)} .btn.danger:hover{border-color:var(--red);background:var(--red-soft)}
 .btn.sm{padding:4px 10px;font-size:12.5px}
 .btn.xs{padding:2px 8px;font-size:12px}
@@ -91,11 +117,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--navy);outline:none;bo
 .seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;background:var(--paper)}
 .seg button{border:0;background:none;padding:6px 12px;cursor:pointer;color:var(--ink2);font-size:13px;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
-.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ink-on)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:1px solid var(--line2);background:var(--paper);border-radius:999px;padding:3px 11px;font-size:12.5px;cursor:pointer;color:var(--ink2)}
 .chip:hover{border-color:var(--ink3)}
-.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--ink-on);border-color:var(--ink)}
 .chip .c{color:var(--ink3);margin-left:4px;font-family:var(--mono);font-size:11px}
 .chip[aria-pressed="true"] .c{color:rgba(255,255,255,.7)}
 
@@ -192,7 +218,7 @@ tr.inel td.co{color:var(--ink3)}
 
 /* ---------- modal ---------- */
 dialog{border:0;border-radius:10px;padding:0;background:var(--paper);color:var(--ink);box-shadow:var(--shadow);width:min(1100px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:hidden}
-dialog::backdrop{background:rgba(28,31,35,.35);backdrop-filter:blur(2px)}
+dialog::backdrop{background:var(--backdrop);backdrop-filter:blur(2px)}
 .mgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);max-height:calc(100vh - 24px)}
 @media (max-width:860px){.mgrid{grid-template-columns:1fr;overflow:auto}}
 .mform{padding:24px 26px;overflow-y:auto;min-height:0;max-height:calc(100vh - 24px);overscroll-behavior:contain}
@@ -222,7 +248,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .sug button:hover,.sug button.on{background:var(--wash)}
 .pipeline{display:flex;flex-wrap:wrap;gap:5px}
 .pipeline button{border:1px solid var(--line2);background:var(--paper);border-radius:999px;padding:4px 12px;font-size:12.5px;cursor:pointer}
-.pipeline button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pipeline button[aria-pressed="true"]{background:var(--ink);color:var(--ink-on);border-color:var(--ink)}
 .pipeline button[aria-pressed="true"].offer,.pipeline button[aria-pressed="true"].accepted{background:var(--green);border-color:var(--green)}
 .pipeline button[aria-pressed="true"].rejected,.pipeline button[aria-pressed="true"].withdrawn,.pipeline button[aria-pressed="true"].ineligible{background:var(--red);border-color:var(--red)}
 .pipeline button[aria-pressed="true"].skipped{background:var(--ink3);border-color:var(--ink3)}
@@ -284,9 +310,9 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .small .fs legend{font-size:17px}
 .exportrow{display:flex;gap:8px;flex-wrap:wrap}
 
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;box-shadow:var(--shadow);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);background:var(--ink);color:var(--ink-on);padding:9px 16px;border-radius:999px;font-size:13px;box-shadow:var(--shadow);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center}
 .toast.show{opacity:1;pointer-events:auto}
-.toast button{border:0;background:none;color:#fff;text-decoration:underline;cursor:pointer;padding:0}
+.toast button{border:0;background:none;color:var(--ink-on);text-decoration:underline;cursor:pointer;padding:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{header,.toolbar,.rail,.actions,.btn{display:none!important}.track{grid-template-columns:1fr}body{background:#fff}}
 </style>
@@ -468,6 +494,14 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
       <div class="grid2">
         <div class="field"><label for="s-target">Target CTC (LPA)</label><input id="s-target" type="number" min="0" step="0.5"></div>
         <div class="field"><label for="s-tenth">10th / 12th %</label><input id="s-tenth" type="text" placeholder="92 / 90"></div>
+      </div>
+    </fieldset>
+    <fieldset class="fs"><legend>Appearance</legend>
+      <div class="field"><label>Theme</label>
+        <div class="seg" id="themeSeg" role="group" aria-label="Theme">
+          <button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button><button type="button" data-t="system">System</button>
+        </div>
+        <div class="hint">Applies on this device. "System" follows your Windows/phone setting.</div>
       </div>
     </fieldset>
     <fieldset class="fs"><legend>Backup</legend>
@@ -713,7 +747,12 @@ function eligibility(a){
 }
 
 // ---------- state ----------
-let view="tracker", mode=LS("pt27.mode")||"cards", statusFilter="all", q="", sortBy="next", showArch=false;
+let view="tracker", mode="cards", statusFilter="all", q="", sortBy="next", showArch=false;   // always opens on Cards
+// ---------- theme ----------
+function applyTheme(t){ const r=document.documentElement; if(t==="light"||t==="dark") r.setAttribute("data-theme",t); else r.removeAttribute("data-theme");
+  document.querySelectorAll("#themeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t)); }
+function currentTheme(){ return LS("pt27.theme")||"system"; }
+applyTheme(currentTheme());
 let refQ="", refTier="all", refBranch="", hideTracked=false, tblSort={k:"company",asc:true};
 
 function visibleApps(){
@@ -1019,7 +1058,7 @@ let toastT; function toast(m,undo){ const t=$("#toast"); t.innerHTML=esc(m)+(und
 
 // ---------- settings ----------
 const sdlg=$("#sdlg"); const S=id=>document.getElementById("s-"+id);
-function openSettings(){ S("name").value=profile.name||""; S("branch").value=profile.branch||""; S("cgpa").value=profile.cgpa??""; S("target").value=profile.target??""; S("tenth").value=profile.tenth||""; sdlg.showModal(); }
+function openSettings(){ S("name").value=profile.name||""; S("branch").value=profile.branch||""; S("cgpa").value=profile.cgpa??""; S("target").value=profile.target??""; S("tenth").value=profile.tenth||""; applyTheme(currentTheme()); sdlg.showModal(); }
 async function download(filename,data,type){
   try{ const dl=window.claude?.use ? await window.claude.use("downloads") : null; if(dl){ await dl.save({filename,data}); toast("Saved "+filename); return; } }catch(e){ if(e?.code==="cancelled") return; }
   try{ const blob=new Blob([data],{type}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast("Downloading "+filename); }
@@ -1042,7 +1081,8 @@ $("#cancelBtn").addEventListener("click",()=>dlg.close()); $("#sCancel").addEven
 $("#q").addEventListener("input",e=>{q=e.target.value;renderList();});
 $("#sort").addEventListener("change",e=>{sortBy=e.target.value;renderList();});
 $("#showArch").addEventListener("change",e=>{showArch=e.target.checked;renderChips();renderList();});
-$("#modeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-m]"); if(b){mode=b.dataset.m;LS("pt27.mode",mode);renderChips();renderList();}});
+$("#modeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-m]"); if(b){mode=b.dataset.m;renderChips();renderList();}});
+$("#themeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-t]"); if(b){ LS("pt27.theme",b.dataset.t); applyTheme(b.dataset.t); }});
 $("#statusChips").addEventListener("click",e=>{const b=e.target.closest("[data-k]"); if(b){statusFilter=b.dataset.k;renderChips();renderList();}});
 $("#rq").addEventListener("input",e=>{refQ=e.target.value;renderRef();});
 $("#branchSel").addEventListener("change",e=>{refBranch=e.target.value;renderRef();});
@@ -1186,7 +1226,7 @@ document.addEventListener("keydown",e=>{ if((e.metaKey||e.ctrlKey)&&e.key==="k")
 
 // ---------- boot ----------
 renderRefStrip(); render();
-if(LS("pt27.view")==="ref") switchView("ref");
+// always opens on My tracker / Cards, whatever was last used
 initStore();
 </script>
 

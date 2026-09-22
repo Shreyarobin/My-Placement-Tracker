@@ -243,6 +243,11 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 .rejectbox .field label{color:var(--red)}
 .card .notes.rej{background:var(--red-soft);border-top:0;padding:8px 10px;border-radius:var(--r)}
 .card .notes.rej b{color:var(--red)}
+.visit{display:flex;flex-direction:column;gap:10px}
+.visit.multi{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--bg)}
+.visit .top{align-items:center}
+.vname{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--navy);font-weight:600;margin-bottom:2px}
+.card > .top h3 + .role{margin-top:0}
 .rolelist{display:flex;flex-direction:column;gap:3px;font-size:13px}
 .rolelist .ro{display:flex;gap:8px;align-items:baseline;color:var(--ink3)}
 .rolelist .ro.applied{color:var(--ink)}
@@ -372,6 +377,10 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
           <div class="sug" id="sug" hidden></div>
           <div class="hint" id="dupHint" hidden></div>
         </div>
+        <div class="grid3" id="visitRow" hidden>
+          <div class="field"><label for="f-visit">Visit number</label><input id="f-visit" type="number" min="1" step="1" value="1"></div>
+          <div class="field" style="grid-column:span 2"><label for="f-visitlabel">Visit label (optional)</label><input id="f-visitlabel" type="text" placeholder="e.g. Oct drive · FTE only · Tier 2 round"></div>
+        </div>
         <div class="grid3">
           <div class="field"><label for="f-tier">Tier</label>
             <select id="f-tier"><option value="">—</option><option>Tier 1</option><option>Tier 2</option><option>Tier 3</option><option>Internship Only</option><option>Summer PPO</option></select></div>
@@ -435,6 +444,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 
       <div class="mactions">
         <button type="button" class="btn danger" id="delBtn" hidden>Delete</button>
+        <button type="button" class="btn" id="newVisitBtn" hidden title="Same company, a new drive">+ Record another visit</button>
         <span style="flex:1"></span>
         <button type="button" class="btn" id="cancelBtn">Cancel</button>
         <button type="submit" class="btn primary" id="saveBtn">Save</button>
@@ -742,7 +752,7 @@ function renderStrip(){
   const inproc=["applied","oa","shortlisted","interview"].reduce((t,s)=>t+n(s),0);
   const best=Math.max(0,...live.filter(a=>a.status==="offer"||a.status==="accepted").map(a=>+a.offer?.ctc||+a.ctc||0));
   $("#strip").innerHTML=[
-    ["Tracked",live.length,""],["Applied so far",live.filter(a=>SRANK[a.status]>=1||a.status==="rejected").length,""],["In process",inproc,"amber"],["Offers",n("offer")+n("accepted"),"green"],["Rejected",n("rejected"),"red"],
+    ["Companies",new Set(live.map(a=>norm(a.company))).size,""],["Applied so far",live.filter(a=>SRANK[a.status]>=1||a.status==="rejected").length,""],["In process",inproc,"amber"],["Offers",n("offer")+n("accepted"),"green"],["Rejected",n("rejected"),"red"],
     ["Best offer",best?best+"<small>LPA</small>":"—",""]
   ].map(([l,v,c])=>`<div class="stat ${c}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
 }
@@ -751,14 +761,18 @@ function renderChips(){
   $("#statusChips").innerHTML=[["all","All"],...STATUSES].filter(([k])=>k==="all"||cnt(k)||statusFilter===k).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${statusFilter===k}">${l}<span class="c">${cnt(k)}</span></button>`).join("");
 }
 function statusSelect(a){ return `<select class="statussel" data-quick="${a.id}" aria-label="Status">${STATUSES.map(([k,l])=>`<option value="${k}" ${a.status===k?"selected":""}>${l}</option>`).join("")}</select>`; }
-function cardHTML(a,compact){
+// visits of the same company (case/punctuation-insensitive), in visit order
+const visitsOf = a => apps.filter(x=>norm(x.company)===norm(a.company)).sort((x,y)=>(x.visit||1)-(y.visit||1));
+const visitName = a => `Visit ${a.visit||1}${a.visitLabel?" · "+esc(a.visitLabel):""}`;
+// one visit's details (everything below the company name)
+function visitHTML(a,compact,showVisit){
   const el=eligibility(a);
   const rounds=a.rounds;   // shown in the order they were recorded
   const out=OUT.has(a.status);
   const resLabel=r=>{ const res=r.result||"pending"; if(res!=="pending") return [res,res]; if(!out) return ["pending","pending"]; return ["skipped", a.status==="skipped"||a.status==="ineligible"?"not attempted":"not reached"]; };
   const rems=a.reminders.filter(r=>!r.done||!compact);
-  return `<article class="card ${a.archived?"archived":""}" data-id="${a.id}">
-    <div class="top"><div><h3>${esc(a.company)}</h3><div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · ${NO_APPLY.has(a.status)?"considered":"not applied yet"}`:"No roles listed"}${a.location?` · ${esc(a.location)}`:""}</div></div>
+  return `<div class="visit ${showVisit?"multi":""}" data-id="${a.id}">
+    <div class="top"><div>${showVisit?`<div class="vname">${visitName(a)}</div>`:""}<div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · ${NO_APPLY.has(a.status)?"considered":"not applied yet"}`:"No roles listed"}</div></div>
       <div style="text-align:right">${a.priority?`<div class="stars">${"★".repeat(a.priority)}</div>`:""}<span class="dot ${a.status}"></span>${statusSelect(a)}</div></div>
     <div class="tags">${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:""}${el.map(e=>`<span class="tag ${e.c}">${e.t}</span>`).join("")}</div>
     ${a.roles.length?`<div class="rolelist">${(compact?a.roles.filter(r=>r.applied):a.roles).map(r=>`<div class="ro ${r.applied?"applied":""}"><span class="tick">${r.applied?"✓":"○"}</span><span style="flex:1">${esc(r.title||"(untitled)")}${r.jobType?` <span class="hint">${esc(r.jobType)}</span>`:""}</span><span class="m">${[r.ctc?r.ctc+" LPA":"",r.stipend?fmtMoney(r.stipend)+"/mo":"",r.gpa?"cutoff "+esc(r.gpa):""].filter(Boolean).join(" · ")}</span></div>`).join("")}</div>`:""}
@@ -772,15 +786,33 @@ function cardHTML(a,compact){
     ${REASONED.has(a.status)&&(a.rejection?.reason||a.rejection?.stage)?`<div class="notes rej ${a.status==="skipped"?"skip":""}"><b>${OUT_LABEL[a.status]}${a.rejection.stage?" at "+esc(stageLabel(a.rejection)):""}${a.rejection.date?" · "+fmtD(a.rejection.date):""}</b>${a.rejection.reason&&!compact?`<br>${esc(a.rejection.reason)}`:""}</div>`:""}
     ${a.outcome&&!compact?`<div class="notes"><b>Latest:</b> ${esc(a.outcome)}</div>`:""}
     ${a.notes&&!compact?`<div class="notes">${esc(a.notes)}</div>`:""}
-    <div class="actions">${a.link?`<a class="btn sm ghost" href="${esc(a.link)}" target="_blank" rel="noopener">Portal ↗</a>`:""}<button class="btn sm" data-act="edit" data-id="${a.id}">Edit</button></div>
+    <div class="actions">${a.link?`<a class="btn sm ghost" href="${esc(a.link)}" target="_blank" rel="noopener">Portal ↗</a>`:""}<button class="btn sm" data-act="edit" data-id="${a.id}">Edit${showVisit?" visit":""}</button></div>
+  </div>`;
+}
+// a company card: header once, then each visible visit
+function companyCardHTML(visits){
+  const a=visits[0], all=visitsOf(a), multi=all.length>1, hiddenN=all.length-visits.length;
+  return `<article class="card ${visits.every(v=>v.archived)?"archived":""}">
+    <div class="top"><div><h3>${esc(a.company)}</h3>${a.location?`<div class="role">${esc(a.location)}</div>`:""}</div>
+      <button class="btn xs ghost" data-act="newvisit" data-id="${a.id}" title="They came back for another drive — record it under this company">+ Visit</button></div>
+    ${visits.map(v=>visitHTML(v,false,multi)).join("")}
+    ${hiddenN?`<div class="hint" style="margin-top:6px">${hiddenN} earlier visit${hiddenN>1?"s":""} hidden by the current filter.</div>`:""}
   </article>`;
+}
+// compact card (board): one per visit
+function cardHTML(a,compact){
+  const multi=visitsOf(a).length>1;
+  return `<article class="card ${a.archived?"archived":""}"><div class="top"><div><h3>${esc(a.company)}${multi?` <span class="tag">${visitName(a)}</span>`:""}</h3></div></div>${visitHTML(a,compact,false)}</article>`;
 }
 function renderList(){
   const list=visibleApps(); const w=$("#listArea");
   document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
   if(!apps.length){ w.innerHTML=`<div class="empty"><h3>Nothing tracked yet</h3>Add the first company that opens for your batch, or browse the <a href="#" data-view="ref">2026 reference</a> and hit Track on the ones you expect back.</div>`; return; }
   if(!list.length){ const hidden=mode==="cards"?apps.filter(a=>!a.archived&&OUT.has(a.status)).length:0; w.innerHTML=`<div class="empty">${statusFilter==="all"&&!q&&hidden?`Nothing active right now. ${hidden} rejected / withdrawn compan${hidden===1?"y is":"ies are"} kept out of the way — use the <b>Rejected</b> chip or "Show rejected &amp; archived" to see them.`:"No companies match this filter."}</div>`; return; }
-  if(mode==="cards"){ w.innerHTML=`<div class="cards">${list.map(a=>cardHTML(a,false)).join("")}</div>`; return; }
+  if(mode==="cards"){
+    // group visible visits under their company, keeping the sort order of the first visit seen
+    const groups=new Map(); for(const a of list){ const k=norm(a.company); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(a); }
+    w.innerHTML=`<div class="cards">${[...groups.values()].map(g=>companyCardHTML(g.sort((x,y)=>(x.visit||1)-(y.visit||1)))).join("")}</div>`; return; }
   if(mode==="board"){
     const cols=[["notapplied","To apply"],["applied","Applied"],["oa","OA done"],["shortlisted","Shortlisted"],["interview","Interviewing"],["offer","Offer"],["accepted","Accepted"],["rejected","Rejected / out"]];
     w.innerHTML=`<div class="board">${cols.map(([k,l])=>{const items=list.filter(a=>a.status===k||(k==="rejected"&&OUT.has(a.status))); return `<div class="col"><h4>${l}<span>${items.length}</span></h4><div style="display:flex;flex-direction:column;gap:8px">${items.map(a=>cardHTML(a,true)).join("")}</div></div>`;}).join("")}</div>`; return;
@@ -788,7 +820,7 @@ function renderList(){
   const cols=[["company","Company"],["role","Applied for"],["tier","Tier"],["status","Status"],["ctc","CTC"],["stipend","Stipend"],["gpa","Cutoff"],["next","Next date"],["priority","Priority"],["updatedAt","Updated"]];
   const rows=[...list].sort((a,b)=>{const k=tblSort.k; let x=k==="next"?nextDate(a)||"":a[k]??"", y=k==="next"?nextDate(b)||"":b[k]??""; if(typeof x==="number"||typeof y==="number"){x=+x||0;y=+y||0;} const c=x<y?-1:x>y?1:0; return tblSort.asc?c:-c;});
   w.innerHTML=`<div class="tblwrap"><table id="myTbl"><thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" class="${tblSort.k===k?"sorted":""} ${tblSort.asc?"asc":""}">${l}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map(a=>`<tr>
-    <td class="co">${esc(a.company)}</td><td>${esc(a.role||"—")}</td><td>${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:"—"}</td><td><span class="dot ${a.status}"></span>${statusSelect(a)}</td>
+    <td class="co">${esc(a.company)}${visitsOf(a).length>1?` <span class="tag">${visitName(a)}</span>`:""}</td><td>${esc(a.role||"—")}</td><td>${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:"—"}</td><td><span class="dot ${a.status}"></span>${statusSelect(a)}</td>
     <td class="n">${a.ctc??"—"}</td><td class="n">${a.stipend?fmtMoney(a.stipend):"—"}</td><td class="n">${esc(a.gpa||"—")}</td><td class="n">${nextDate(a)?fmtD(nextDate(a))+" · "+rel(daysFrom(nextDate(a))):"—"}</td>
     <td class="stars">${"★".repeat(a.priority||0)}</td><td class="n">${a.updatedAt?fmtD(a.updatedAt.slice(0,10)):"—"}</td><td><button class="btn xs" data-act="edit" data-id="${a.id}">Edit</button></td></tr>`).join("")}</tbody></table></div>`;
 }
@@ -915,12 +947,23 @@ function guessType(r,tier){ return tier==="Internship Only"?"Intern":tier==="Sum
 function eligHint(){
   const tmp=deriveFromRoles({roles:draft.roles||[]}); const el=eligibility({gpa:tmp.gpa,branches:F("branches").value});
   $("#eligHint").innerHTML=el.map(e=>`<span class="hint ${e.c}" style="margin-right:12px">${e.t}</span>`).join("")||(profile.cgpa?"":`<span class="hint">Set your CGPA and branch under Profile to check eligibility automatically.</span>`); }
-function dupCheck(){ const id=F("id").value, k=norm(F("company").value); const d=apps.find(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d; if(d) h.innerHTML=`You're already tracking <b>${esc(d.company)}</b> — add the role there instead: <a href="#" data-edit="${d.id}">open it</a>.`; }
-function openForm(a){
+function dupCheck(){
+  const id=F("id").value, k=norm(F("company").value); const d=apps.filter(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d.length||draft.newVisit;
+  if(d.length&&!draft.newVisit) h.innerHTML=`You're already tracking <b>${esc(d[0].company)}</b> (${d.length} visit${d.length>1?"s":""}). Add a role to <a href="#" data-edit="${d[d.length-1].id}">the existing entry</a>, or <a href="#" data-newvisit="${d[0].id}">record this as visit ${d.length+1}</a> if they've come back for a new drive.`;
+}
+// start a fresh visit of an existing company: company details carry over, everything else starts clean
+function newVisitFrom(src){
+  const all=visitsOf(src); const n=Math.max(...all.map(v=>v.visit||1))+1;
+  openForm({company:src.company,location:src.location,link:src.link,branches:src.branches,contact:src.contact,priority:src.priority,visit:n},{newVisit:true});
+  showPrev(src.company); toast(`Visit ${n} of ${src.company} — set the tier, roles and status for this drive`);
+}
+function openForm(a,opts={}){
   form.reset(); $("#sug").hidden=true; $("#dupHint").hidden=true;
-  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),roles:JSON.parse(JSON.stringify(a?.roles||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null};
-  $("#dlgTitle").textContent=a?.id?"Edit "+a.company:"Add a company"; $("#dlgSub").hidden=!!a?.id;
-  $("#delBtn").hidden=!a?.id;
+  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),roles:JSON.parse(JSON.stringify(a?.roles||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null,newVisit:!!opts.newVisit};
+  const nVisits=a?.company?visitsOf(a).length:0, multi=opts.newVisit||nVisits>1||(a?.visit||1)>1;
+  $("#dlgTitle").textContent=opts.newVisit?`${a.company} — visit ${a.visit}`:a?.id?"Edit "+a.company+(multi?` · ${visitName(a).replace(/<[^>]+>/g,"")}`:""):"Add a company"; $("#dlgSub").hidden=!!a?.id||!!opts.newVisit;
+  $("#delBtn").hidden=!a?.id; $("#newVisitBtn").hidden=!a?.id;
+  $("#visitRow").hidden=!multi; F("visit").value=a?.visit||1; F("visitlabel").value=a?.visitLabel||"";
   F("id").value=a?.id||""; F("company").value=a?.company||""; F("tier").value=a?.tier||"";
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
   F("branches").value=a?.branches||""; F("deadline").value=a?.deadline||"";
@@ -929,7 +972,7 @@ function openForm(a){
   F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
   F("resume").value=""; F("contact").value=a?.contact||""; F("notes").value=a?.notes||""; F("archived").checked=!!a?.archived;
   renderPipeline(); renderStars(); renderRoles(); renderRounds(); renderRems(); renderResumeBox(); showPrev(F("company").value);
-  dlg.showModal(); $(".mform").scrollTop=0; setTimeout(()=>F("company").focus(),50);
+  dlg.showModal(); $(".mform").scrollTop=0; setTimeout(()=>F(opts.newVisit?"tier":"company").focus(),50);
 }
 function showPrev(name,opts={}){
   const p=$("#mprev"); const hit=findPrev(name);
@@ -962,7 +1005,7 @@ function applyUse(list){
 function collect(){
   const num=v=>v===""?null:+v; const old=apps.find(a=>a.id===F("id").value);
   return deriveFromRoles({ id:F("id").value||uid(), createdAt:old?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString(),
-    company:F("company").value.trim(), tier:F("tier").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
+    company:F("company").value.trim(), visit:Math.max(1,parseInt(F("visit").value)||1), visitLabel:F("visitlabel").value.trim(), tier:F("tier").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
     branches:F("branches").value.trim(), deadline:F("deadline").value,
     roles:draft.roles.filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:r.id||uid(),title:(r.title||"").trim(),jobType:r.jobType||"",stipend:r.stipend===""||r.stipend==null?null:+r.stipend,base:r.base===""||r.base==null?null:+r.base,ctc:r.ctc===""||r.ctc==null?null:+r.ctc,gpa:(r.gpa||"").trim(),applied:!!r.applied})),
     status:F("status").value, outcome:F("outcome").value.trim(),
@@ -983,7 +1026,7 @@ async function download(filename,data,type){
   catch{ try{ await navigator.clipboard.writeText(data); toast("Download blocked here — copied to clipboard instead"); }catch{ toast("Couldn't export in this viewer"); } }
 }
 function toCSV(){
-  const cols=["company","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","rejectedAt","reasonNote","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
+  const cols=["company","visit","visitLabel","appliedRoles","allRoles","tier","jobType","status","priority","location","stipend","base","ctc","branches","gpa","deadline","outcome","rejectedAt","reasonNote","offerCtc","offerBy","offerDecision","rounds","reminders","resume","contact","notes","link","updatedAt"];
   const cell=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[cols.join(",")];
   for(const a of apps) lines.push(cols.map(c=>cell(c==="rejectedAt"?[stageLabel(a.rejection),a.rejection?.date].filter(Boolean).join(" "):c==="reasonNote"?a.rejection?.reason:c==="offerCtc"?a.offer?.ctc:c==="offerBy"?a.offer?.by:c==="offerDecision"?a.offer?.accepted:c==="rounds"?a.rounds.map(r=>`${roundLabel(r)} ${r.date}${r.time?" "+r.time:""} [${r.result}]${r.note?" "+r.note:""}`).join(" | "):c==="reminders"?a.reminders.map(r=>`${r.date} ${r.text}${r.done?" (done)":""}`).join(" | "):c==="resume"?a.resume?.name:c==="appliedRoles"?a.roles.filter(r=>r.applied).map(r=>r.title).join(" | "):c==="allRoles"?a.roles.map(r=>`${r.title}${r.ctc?" "+r.ctc+" LPA":""}${r.stipend?" "+r.stipend+"/mo":""}`).join(" | "):a[c])).join(","));
@@ -1014,6 +1057,7 @@ $("#listArea").addEventListener("click",async e=>{
   const rl=e.target.closest("[data-resume]"); if(rl){ e.preventDefault(); const a=apps.find(x=>x.id===rl.dataset.resume); openResume(a?.resume); return; }
   const th=e.target.closest("th[data-k]"); if(th){ if(tblSort.k===th.dataset.k) tblSort.asc=!tblSort.asc; else tblSort={k:th.dataset.k,asc:true}; renderList(); return; }
   const rm=e.target.closest("[data-rem]"); if(rm){ toggleReminder(rm.dataset.id,rm.dataset.rem); return; }
+  const nv=e.target.closest("[data-act=newvisit]"); if(nv){ const a=apps.find(x=>x.id===nv.dataset.id); if(a) newVisitFrom(a); return; }
   const b=e.target.closest("[data-act=edit]"); if(b){ const a=apps.find(x=>x.id===b.dataset.id); if(a) openForm(a); }
 });
 async function toggleReminder(appId,remId){
@@ -1080,7 +1124,11 @@ $("#rounds").addEventListener("click",e=>{const b=e.target.closest("[data-rdel]"
 $("#rems").addEventListener("input",e=>{const el=e.target; if(el.dataset.mi!=null) draft.reminders[+el.dataset.mi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;});
 $("#rems").addEventListener("click",e=>{const b=e.target.closest("[data-mdel]"); if(b){draft.reminders.splice(+b.dataset.mdel,1);renderRems();}});
 F("branches").addEventListener("input",eligHint);
-$("#dupHint").addEventListener("click",e=>{const a=e.target.closest("[data-edit]"); if(a){e.preventDefault(); const x=apps.find(y=>y.id===a.dataset.edit); if(x) openForm(x);}});
+$("#dupHint").addEventListener("click",e=>{
+  const a=e.target.closest("[data-edit]"); if(a){e.preventDefault(); const x=apps.find(y=>y.id===a.dataset.edit); if(x) openForm(x); return;}
+  const v=e.target.closest("[data-newvisit]"); if(v){e.preventDefault(); const x=apps.find(y=>y.id===v.dataset.newvisit); if(x) newVisitFrom(x);}
+});
+$("#newVisitBtn").addEventListener("click",()=>{ const a=apps.find(x=>x.id===F("id").value); if(a) newVisitFrom(a); });
 // company autocomplete
 const sug=$("#sug"); let sugIdx=-1;
 F("company").addEventListener("input",e=>{
@@ -1127,7 +1175,7 @@ $("#impBtn").addEventListener("click",()=>$("#impFile").click());
 $("#impFile").addEventListener("change",async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{ const j=JSON.parse(await f.text()); const inc=Array.isArray(j)?j:j.applications||[]; let n=0;
-    for(const raw of inc){ const a=migrate({...raw}); a.id ||= uid(); const ex=apps.find(x=>x.id===a.id||norm(x.company)===norm(a.company));
+    for(const raw of inc){ const a=migrate({...raw}); a.id ||= uid(); const ex=apps.find(x=>x.id===a.id||(norm(x.company)===norm(a.company)&&(x.visit||1)===(a.visit||1)));
       if(ex){ if((a.updatedAt||"")>(ex.updatedAt||"")){ a.id=ex.id; await store.save(a); n++; } } else { await store.save(a); n++; } }
     if(j.profile&&!profile.cgpa) await store.saveProfile(j.profile);
     toast(`Imported ${n} compan${n===1?"y":"ies"}`); render(); }

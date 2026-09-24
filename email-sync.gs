@@ -57,6 +57,11 @@ function syncPlacementEmails() {
       if (msg.getDate().getTime() < cutoffMs) { skipped++; return; }
       if (!fromWatchedSender(msg.getFrom())) { skipped++; return; }
 
+      if (!isPlacementMail(msg.getSubject(), msg.getPlainBody())) {
+        skipped++; seen.push(id); seenSet[id] = 1;      // remember it so we don't re-check every run
+        return;
+      }
+
       var parsed = parsePlacementEmail(msg.getSubject(), msg.getPlainBody(), msg.getDate().toISOString());
       parsed.gmailId = id;
       parsed.from = msg.getFrom();
@@ -102,11 +107,38 @@ function upsertInbox(url, key, token, userId, id, data) {
   return true;
 }
 
+// ---------------------------------------------------------------- relevance
+/**
+ * True only for mails that are actually about a recruitment drive.
+ * The placement group also forwards education fairs, webinars, fee notices
+ * and general announcements — those should never reach the tracker.
+ */
+function isPlacementMail(subject, body) {
+  var T = (String(subject||"") + "\n" + String(body||"")).toLowerCase();
+
+  // things that are definitely not a drive, however they are worded
+  if (/education fair|virtual fair|study abroad|globaldegrees|gre\b|ielts|toefl|ms in |admission|scholarship|alumni meet|convocation|fee (payment|structure)|hostel|time ?table|exam schedule|survey|feedback form|newsletter/.test(T)
+      && !/recruitment drive|ctc|lpa|stipend/.test(T)) return false;
+  if (/^\s*(fwd:|fw:|re:)*\s*invitation\b/i.test(String(subject||"")) && !/recruitment drive|ctc|lpa|stipend|shortlist/.test(T)) return false;
+
+  var strong = /recruitment drive|placement drive|placement opportunity|^role:|\nrole:|\nctc:|application deadline|shortlist(ed)?\b|online assessment|offer letter|job description/m.test(T)
+            || /(?:₹|rs\.?|inr)\s*[\d,]{4,}/.test(T)
+            || /[\d.]+\s*(?:lpa|lakhs? per annum)/.test(T);
+  var medium = 0;
+  if (/hiring|recruit|drive\b|intern(ship)?\b|full[- ]?time|fte\b|ppo\b/.test(T)) medium++;
+  if (/cgpa|backlog|eligib/.test(T)) medium++;
+  if (/interview|aptitude|technical round|hr round|group discussion/.test(T)) medium++;
+  if (/register|apply\b|deadline/.test(T)) medium++;
+
+  return strong || medium >= 3;
+}
+
 // ---------------------------------------------------------------- parser
-// Keep in step with the copy in index.html.
+// The tracker only displays what this produces; all extraction happens here.
 function parsePlacementEmail(subject, body, receivedISO) {
-  var S = String(subject || "");
+  var S = String(subject || "").replace(/^\s*(?:(?:fwd?|re|fw)\s*:\s*)+/i, "");   // drop Fwd:/Re: prefixes
   var B = String(body || "").replace(/\r/g, "");
+  var JUNK_CO = /^(fwd?|re|invitation|dear|all|hi|hello|urgent|important|reminder|update|notice|attention)$/i;
   var year0 = new Date(receivedISO || Date.now()).getFullYear();
   var out = { company:"", roles:[], tier:"", location:"", branches:"", gpa:"", deadline:"", deadlineTime:"",
               rounds:[], link:"", notes:[], confidence:"partial", subject:S, receivedAt:receivedISO||"" };
@@ -140,7 +172,9 @@ function parsePlacementEmail(subject, body, receivedISO) {
   if (!co) { var m2 = S.match(/^\s*([^|:–—]+?)\s*\|/); if (m2) co = m2[1]; }
   if (!co) { var m3 = B.match(/inform you that\s+(.+?)\s+is organi[sz]ing/i); if (m3) co = m3[1]; }
   if (!co) { var m4 = S.match(/^\s*([A-Z][\w.&' ]{2,40}?)\s*[-–—:]/); if (m4) co = m4[1]; }
-  out.company = (co || "").replace(/\s+/g," ").trim();
+  co = (co || "").replace(/\s+/g," ").trim();
+  if (JUNK_CO.test(co) || co.length < 2) co = "";
+  out.company = co;
 
   var evt      = line(/^Event:\s*(.+)$/mi);
   var dateLn   = line(/^Date:\s*(.+)$/mi);

@@ -15,11 +15,16 @@
  *  5. Choose `installTrigger` → Run.  That schedules it every 15 minutes.
  *
  * It only ever READS Gmail. It never replies, deletes, or marks anything read.
+ * Every 15 minutes it re-scans the last week of mail from the placement senders,
+ * whether you have read them or not, and queues anything new.
  */
 
 // Only mails received at or after this moment are considered.
 var CUTOFF = "2026-09-24T12:53:00+05:30";
 var SENDERS = ["pesuplacements@pes.edu", "placementsupport@pes.edu"];
+// How far back each run looks. Read or unread doesn't matter — already-queued
+// mails are remembered by id, so nothing is ever added twice.
+var LOOKBACK_DAYS = 7;
 
 // ---------------------------------------------------------------- entry points
 function installTrigger() {
@@ -46,11 +51,14 @@ function syncPlacementEmails() {
   var seen = JSON.parse(props.getProperty("SEEN_IDS") || "[]");
   var seenSet = {}; seen.forEach(function (id) { seenSet[id] = 1; });
 
-  var since = Utilities.formatDate(new Date(cutoffMs - 864e5), "GMT+5:30", "yyyy/MM/dd");
-  var query = "is:unread after:" + since + " (" + SENDERS.map(function (s) { return "from:" + s; }).join(" OR ") + ")";
+  // Look back over a rolling window — read or unread, it makes no difference.
+  // SEEN_IDS is what stops anything being queued twice.
+  var windowMs = Math.max(cutoffMs, Date.now() - LOOKBACK_DAYS * 864e5);
+  var since = Utilities.formatDate(new Date(windowMs - 864e5), "GMT+5:30", "yyyy/MM/dd");
+  var query = "after:" + since + " (" + SENDERS.map(function (s) { return "from:" + s; }).join(" OR ") + ")";
 
   var queued = 0, skipped = 0;
-  GmailApp.search(query, 0, 50).forEach(function (thread) {
+  GmailApp.search(query, 0, 100).forEach(function (thread) {
     thread.getMessages().forEach(function (msg) {
       var id = msg.getId();
       if (seenSet[id]) { skipped++; return; }

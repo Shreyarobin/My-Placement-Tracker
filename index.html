@@ -807,7 +807,8 @@ function mailToApp(m,visit){
       stipend:r.stipend??null,base:r.base??null,ctc:r.ctc??null,gpa:r.gpa||"",applied:false})),
     status:"notapplied", outcome:"", rejection:null,
     rounds:(m.rounds||[]).map(r=>({id:uid(),type:r.type||"Other",otherType:r.otherType||"",date:r.date||"",time:r.time||"",result:"pending",note:r.note||""})),
-    reminders: m.deadline ? [{id:uid(),date:m.deadline,text:"Register / apply"+(m.deadlineTime?" before "+m.deadlineTime:""),done:false}] : [],
+    reminders: (m.reminders&&m.reminders.length ? m.reminders : (m.deadline?[{date:m.deadline,text:"Last day to apply"+(m.deadlineTime?" — by "+m.deadlineTime:"")}]:[]))
+                 .map(r=>({id:uid(),date:r.date,text:r.text||"Reminder",done:!!r.done})),
     offer:{ctc:null,by:"",accepted:""}, resume:null, contact:"",
     notes:[...(m.notes||[]), m.subject?`From email: ${m.subject}`:""].filter(Boolean).join("\n"), archived:false });
 }
@@ -823,7 +824,8 @@ function renderInbox(){
         ["Stipend",r.stipend?fmtMoney(r.stipend)+"/mo":""],["CTC",r.ctc?r.ctc+" LPA":""],
         ["CGPA cutoff",m.gpa],["Branches",m.branches],["Location",m.location],
         ["Apply by",m.deadline?fmtD(m.deadline)+(m.deadlineTime?" "+m.deadlineTime:""):""],
-        ["Rounds",(m.rounds||[]).map(x=>roundLabel(x)+(x.date?" "+fmtD(x.date):"")).join(" → ")]
+        ["Rounds",(m.rounds||[]).map(x=>roundLabel(x)+(x.date?" "+fmtD(x.date):"")).join(" → ")],
+        ["Reminders it will set",(m.reminders||[]).map(x=>fmtD(x.date)+" "+x.text).join(" · ")]
       ].filter(([,v])=>v);
       return `<div class="mail" data-mid="${esc(m.id)}">
         <div class="mh"><div><h3>${esc(m.company||"(company not found)")}</h3>
@@ -852,6 +854,8 @@ async function inboxAction(id,act){
       copy.roles.push({id:uid(),title:r.title,jobType:r.jobType||"",stipend:r.stipend??null,base:r.base??null,ctc:r.ctc??null,gpa:r.gpa||"",applied:false});
     for(const r of (m.rounds||[])) if(!copy.rounds.some(x=>x.type===r.type&&x.date===r.date))
       copy.rounds.push({id:uid(),type:r.type,otherType:r.otherType||"",date:r.date||"",time:r.time||"",result:"pending",note:r.note||""});
+    for(const r of (m.reminders||[])) if(r.date&&!copy.reminders.some(x=>x.date===r.date&&x.text===r.text))
+      copy.reminders.push({id:uid(),date:r.date,text:r.text||"Reminder",done:false});
     if(!copy.deadline&&m.deadline) copy.deadline=m.deadline;
     if(!copy.link&&m.link) copy.link=m.link;
     if(!copy.gpa&&m.gpa) copy.roles.forEach(r=>{ if(!r.gpa) r.gpa=m.gpa; });

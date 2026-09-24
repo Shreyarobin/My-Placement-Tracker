@@ -140,8 +140,9 @@ function parsePlacementEmail(subject, body, receivedISO) {
   var B = String(body || "").replace(/\r/g, "");
   var JUNK_CO = /^(fwd?|re|invitation|dear|all|hi|hello|urgent|important|reminder|update|notice|attention)$/i;
   var year0 = new Date(receivedISO || Date.now()).getFullYear();
+  var lines0;
   var out = { company:"", roles:[], tier:"", location:"", branches:"", gpa:"", deadline:"", deadlineTime:"",
-              rounds:[], link:"", notes:[], confidence:"partial", subject:S, receivedAt:receivedISO||"" };
+              rounds:[], reminders:[], link:"", notes:[], confidence:"partial", subject:S, receivedAt:receivedISO||"" };
 
   function line(re) { var m = B.match(re); return m ? m[1].trim() : ""; }
   function money(s) { var m = String(s).replace(/[, ]/g,"").match(/₹?([\d.]+)/); return m ? parseFloat(m[1]) : null; }
@@ -239,7 +240,7 @@ function parsePlacementEmail(subject, body, receivedISO) {
 
   if (dlLn) { out.deadline = findDate(dlLn); out.deadlineTime = findTime(dlLn); }
   if (!out.deadline) {
-    var md = B.match(/(?:register|apply|submit|respond)[^\n]{0,80}?\b(?:by|before|latest by)\s+([^\n]{3,50})/i);
+    var md = B.match(/(?:register|apply|submit|respond|confirm)[^\n]{0,80}?\b(?:by|before|latest by)\s+([^\n]{3,50})/i);
     if (md) {
       var frag = md[1];
       out.deadline = findDate(frag) ||
@@ -267,6 +268,76 @@ function parsePlacementEmail(subject, body, receivedISO) {
   });
   if (!out.rounds.length && driveDate)
     out.rounds.push({ type:"Other", otherType:"Drive", date:driveDate, time:driveTime, result:"pending", note:"" });
+
+  // Schedule emails state rounds the other way round:
+  // "Online Assessment: 28th September 2026, 10:00 AM" / "Technical Interview on 3rd October".
+  lines0 = B.split("\n");
+  for (var li = 0; li < lines0.length; li++) {
+    var lm = lines0[li].match(/^\s*([A-Za-z][A-Za-z /&+-]{2,40}?)\s*(?::|—|\bon\b|\bis scheduled (?:on|for)\b)\s*(.*\d.*)$/);
+    if (!lm) continue;
+    var rtype = mapRound(lm[1]);
+    if (rtype === "Other") continue;                       // only named rounds, never "Venue:" or "CTC:"
+    var rd = findDate(lm[2]); if (!rd) continue;
+    var rt = findTime(lm[2]);
+    var existing = null;
+    for (var ri = 0; ri < out.rounds.length; ri++)
+      if (out.rounds[ri].type === rtype && (!out.rounds[ri].date || out.rounds[ri].date === rd)) { existing = out.rounds[ri]; break; }
+    if (existing) { existing.date = existing.date || rd; existing.time = existing.time || rt; }
+    else out.rounds.push({ type: rtype, otherType: "", date: rd, time: rt, result: "pending", note: "" });
+  }
+
+  // A round often has its own date stated somewhere in the body
+  // ("Online Assessment: 25 Sept", "Technical Interview on 2 October, 10:00 AM").
+  var ROUND_WORDS = {
+    "OA": /online assessment|online test|coding test|\boa\b|aptitude/i,
+    "Aptitude": /aptitude/i,
+    "Group discussion": /group discussion|\bgd\b/i,
+    "Application": /resume screening|shortlist|registration/i,
+    "Technical R1": /technical (interview|round)|tech round|interview/i,
+    "Technical R2": /technical round 2|second (technical )?round|round 2/i,
+    "Managerial": /managerial/i,
+    "HR": /\bhr\b/i,
+    "PPT": /pre[- ]?placement talk|presentation|\bppt\b/i,
+    "Offer": /offer (release|letter)|final result/i
+  };
+  var lines = lines0;
+  out.rounds.forEach(function (r) {
+    if (r.date) return;
+    var words = ROUND_WORDS[r.type]; if (!words) return;
+    for (var i = 0; i < lines.length; i++) {
+      if (!words.test(lines[i])) continue;
+      var d = findDate(lines[i]);
+      if (d) { r.date = d; r.time = r.time || findTime(lines[i]); break; }
+    }
+  });
+
+  // ---------------------------------------------------------------- reminders
+  function addReminder(date, text) {
+    if (!date) return;
+    if (out.reminders.some(function (x) { return x.date === date && x.text === text; })) return;
+    out.reminders.push({ date: date, text: text, done: false });
+  }
+  function dayBefore(iso) {
+    if (!iso) return "";
+    var d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  var gotDate = String(receivedISO || "").slice(0, 10);
+
+  if (out.deadline) {
+    addReminder(out.deadline, "Last day to apply" + (out.deadlineTime ? " — by " + out.deadlineTime : ""));
+    var pre = dayBefore(out.deadline);
+    if (pre > gotDate) addReminder(pre, "Application deadline is tomorrow");
+  }
+  out.rounds.forEach(function (r) {
+    if (!r.date) return;
+    var label = (r.type === "Other" && r.otherType) ? r.otherType : r.type;
+    addReminder(r.date, label + " today" + (r.time ? " at " + r.time : ""));
+    var pre = dayBefore(r.date);
+    if (/Technical|Managerial|HR|Group discussion|OA|Aptitude/.test(r.type) && pre > gotDate)
+      addReminder(pre, label + " tomorrow" + (r.time ? " at " + r.time : "") + " — prep");
+  });
+  out.reminders.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 
   var link = B.match(/https?:\/\/\S*(?:forms\.gle|docs\.google\.com\/forms|unstop|superset|hirepro)\S*/i)
           || B.match(/https?:\/\/\S{10,}/);

@@ -93,6 +93,22 @@ section[hidden]{display:none}
 /* ---------- alerts ---------- */
 .alert{border:1px solid var(--line);background:var(--paper);border-left:3px solid var(--amber);padding:10px 14px;border-radius:var(--r);margin-bottom:18px;display:flex;gap:12px;align-items:flex-start;font-size:13.5px}
 .alert.red{border-left-color:var(--red)}
+/* email inbox */
+.inbox{border:1px solid var(--line);background:var(--paper);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
+.inbox > h2{font-size:18px;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--wash)}
+.inbox .count{font-family:var(--mono);font-size:12px;background:var(--navy);color:var(--ink-on);border-radius:999px;padding:1px 9px}
+.mail{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.mail:last-child{border-bottom:0}
+.mail .mh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.mail h3{font-size:20px}
+.mail .sub{font-size:12.5px;color:var(--ink3);margin-top:2px}
+.mail .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 16px;font-size:13px}
+.mail .grid div b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:600}
+.mail .grid div span{font-family:var(--mono);font-size:12.5px}
+.mail .exist{font-size:12.5px;background:var(--amber-soft);color:var(--amber);border-radius:var(--r);padding:6px 10px}
+.mail .mact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mail details summary{font-size:12.5px;color:var(--ink3);cursor:pointer}
+.mail details pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink2);background:var(--wash);padding:10px;border-radius:var(--r);max-height:220px;overflow:auto;margin:6px 0 0}
 .alert b{font-weight:600}
 .alert ul{margin:4px 0 0;padding-left:18px}
 
@@ -337,6 +353,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
 
 <main>
 <section id="v-tracker">
+  <div id="inbox"></div>
   <div id="alerts"></div>
   <div class="strip" id="strip"></div>
   <div class="track">
@@ -598,7 +615,7 @@ function searchPrev(q){
 }
 
 // ---------- storage ----------
-let apps=[], profile={}, store=null;
+let apps=[], profile={}, store=null, inbox=[];
 const LS=(k,v)=>{ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); }catch{ return null; } };
 function migrate(a){
   a.rounds ||= []; a.reminders ||= []; a.offer ||= {}; a.priority ||= 0;
@@ -624,7 +641,8 @@ const localStore={
   init(){ apps=(LS("pt27.apps")||[]).map(migrate); profile=LS("pt27.profile")||{}; render(); setSync("local","Saved in this browser only"); },
   async save(a){ const i=apps.findIndex(x=>x.id===a.id); if(i>=0)apps[i]=a; else apps.push(a); LS("pt27.apps",apps); render(); },
   async remove(id){ apps=apps.filter(x=>x.id!==id); LS("pt27.apps",apps); render(); },
-  async saveProfile(p){ profile=p; LS("pt27.profile",p); render(); }
+  async saveProfile(p){ profile=p; LS("pt27.profile",p); render(); },
+  async dropInbox(){}, refresh(){}
 };
 function dbStore(db){
   const col=db.collection("applications"), pdoc=db.doc("settings/profile");
@@ -636,7 +654,8 @@ function dbStore(db){
     },
     async save(a){ const {id,...body}=a; await col.doc(id).set(JSON.parse(JSON.stringify(body))); },
     async remove(id){ await col.doc(id).delete(); },
-    async saveProfile(p){ profile=p; await pdoc.set(p); LS("pt27.profile",p); }
+    async saveProfile(p){ profile=p; await pdoc.set(p); LS("pt27.profile",p); },
+    async dropInbox(){}, refresh(){}
   };
 }
 function setSync(cls,txt){ const s=$("#sync"); s.className="sync "+cls; s.querySelector("span").textContent=txt; }
@@ -650,6 +669,8 @@ function supaStore(sb){
       const {data,error}=await sb.from("applications").select("id,data"); if(error) throw error;
       apps=data.map(r=>migrate({id:r.id,...r.data}));
       const p=await sb.from("profiles").select("data").maybeSingle(); profile=p.data?.data||{};
+      try{ const ib=await sb.from("inbox").select("id,data,created_at").order("created_at",{ascending:false});
+           inbox = ib.error ? [] : ib.data.map(r=>({id:r.id,...r.data})); }catch{ inbox=[]; }
       cache(); render(); setSync("ok","Synced · "+(user.email||""));
     }catch(e){ setSync("local","Couldn't reach Supabase — showing cached copy"); apps=(LS("pt27.apps")||[]).map(migrate); profile=LS("pt27.profile")||{}; render(); }
     finally{ loading=false; }
@@ -665,7 +686,9 @@ function supaStore(sb){
     },
     async save(a){ if(!user) throw new Error("Sign in first"); const {id,...body}=a; const {error}=await sb.from("applications").upsert({id,user_id:user.id,data:body,updated_at:new Date().toISOString()}); if(error) throw error; const i=apps.findIndex(x=>x.id===id); if(i>=0)apps[i]=a; else apps.push(a); cache(); render(); },
     async remove(id){ const {error}=await sb.from("applications").delete().eq("id",id); if(error) throw error; apps=apps.filter(x=>x.id!==id); cache(); render(); },
-    async saveProfile(p){ const {error}=await sb.from("profiles").upsert({user_id:user.id,data:p,updated_at:new Date().toISOString()}); if(error) throw error; profile=p; cache(); render(); }
+    async saveProfile(p){ const {error}=await sb.from("profiles").upsert({user_id:user.id,data:p,updated_at:new Date().toISOString()}); if(error) throw error; profile=p; cache(); render(); },
+    async dropInbox(id){ await sb.from("inbox").delete().eq("id",id); inbox=inbox.filter(x=>x.id!==id); renderInbox(); },
+    refresh(){ loadAll(); }
   };
 }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
@@ -773,8 +796,77 @@ function visibleApps(){
 }
 
 // ---------- render ----------
-function render(){ renderAlerts(); renderStrip(); renderChips(); renderList(); renderEvents(); renderFunnel(); renderPolicy(); if(view==="ref") renderRef(); }
+function render(){ renderInbox(); renderAlerts(); renderStrip(); renderChips(); renderList(); renderEvents(); renderFunnel(); renderPolicy(); if(view==="ref") renderRef(); }
 
+// ---------- email inbox ----------
+function mailToApp(m,visit){
+  return deriveFromRoles({ id:uid(), createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+    company:m.company||"(unnamed)", visit:visit||1, visitLabel:"", tier:m.tier||"", location:m.location||"",
+    link:m.link||"", priority:0, branches:m.branches||"", deadline:m.deadline||"",
+    roles:(m.roles||[]).filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:uid(),title:r.title||"",jobType:r.jobType||"",
+      stipend:r.stipend??null,base:r.base??null,ctc:r.ctc??null,gpa:r.gpa||"",applied:false})),
+    status:"notapplied", outcome:"", rejection:null,
+    rounds:(m.rounds||[]).map(r=>({id:uid(),type:r.type||"Other",otherType:r.otherType||"",date:r.date||"",time:r.time||"",result:"pending",note:r.note||""})),
+    reminders: m.deadline ? [{id:uid(),date:m.deadline,text:"Register / apply"+(m.deadlineTime?" before "+m.deadlineTime:""),done:false}] : [],
+    offer:{ctc:null,by:"",accepted:""}, resume:null, contact:"",
+    notes:[...(m.notes||[]), m.subject?`From email: ${m.subject}`:""].filter(Boolean).join("\n"), archived:false });
+}
+function renderInbox(){
+  const w=$("#inbox"); if(!inbox.length){ w.innerHTML=""; return; }
+  w.innerHTML=`<div class="inbox"><h2>From your email <span class="count">${inbox.length}</span>
+      <span class="hint" style="font-weight:400;text-transform:none;letter-spacing:0">Nothing is added until you approve it</span></h2>
+    ${inbox.map(m=>{
+      const ex=apps.filter(a=>norm(a.company)===norm(m.company||""));
+      const last=ex.length?Math.max(...ex.map(a=>a.visit||1)):0;
+      const r=(m.roles||[])[0]||{};
+      const cells=[["Role",[r.title,r.jobType].filter(Boolean).join(" · ")],["Tier",m.tier],
+        ["Stipend",r.stipend?fmtMoney(r.stipend)+"/mo":""],["CTC",r.ctc?r.ctc+" LPA":""],
+        ["CGPA cutoff",m.gpa],["Branches",m.branches],["Location",m.location],
+        ["Apply by",m.deadline?fmtD(m.deadline)+(m.deadlineTime?" "+m.deadlineTime:""):""],
+        ["Rounds",(m.rounds||[]).map(x=>roundLabel(x)+(x.date?" "+fmtD(x.date):"")).join(" → ")]
+      ].filter(([,v])=>v);
+      return `<div class="mail" data-mid="${esc(m.id)}">
+        <div class="mh"><div><h3>${esc(m.company||"(company not found)")}</h3>
+          <div class="sub">${esc(m.subject||"")}${m.receivedAt?" · "+fmtD(m.receivedAt.slice(0,10)):""}</div></div>
+          <span class="tag ${m.confidence==="high"?"ok":"warn"}">${m.confidence==="high"?"parsed fully":"partial — check"}</span></div>
+        <div class="grid">${cells.map(([k,v])=>`<div><b>${k}</b><span>${esc(v)}</span></div>`).join("")}</div>
+        ${ex.length?`<div class="exist">You already track <b>${esc(ex[0].company)}</b> (${ex.length} visit${ex.length>1?"s":""}). Add this as a new visit, or merge the new dates into the latest one.</div>`:""}
+        ${m.link?`<div class="hint">Form: <a href="${esc(m.link)}" target="_blank" rel="noopener">${esc(m.link.slice(0,70))}…</a></div>`:""}
+        ${m.raw?`<details><summary>Show the original email</summary><pre>${esc(m.raw)}</pre></details>`:""}
+        <div class="mact">
+          <button class="btn sm ghost" data-mail="dismiss">Dismiss</button>
+          <button class="btn sm" data-mail="edit">Edit first</button>
+          ${ex.length?`<button class="btn sm" data-mail="merge">Merge into visit ${last}</button>
+                       <button class="btn sm primary" data-mail="visit">Add as visit ${last+1}</button>`
+                     :`<button class="btn sm primary" data-mail="approve">Approve</button>`}
+        </div></div>`;}).join("")}</div>`;
+}
+async function inboxAction(id,act){
+  const m=inbox.find(x=>x.id===id); if(!m) return;
+  const ex=apps.filter(a=>norm(a.company)===norm(m.company||"")).sort((a,b)=>(a.visit||1)-(b.visit||1));
+  if(act==="dismiss"){ if(!confirm(`Dismiss the ${m.company||"this"} email? It won't come back.`)) return; await store.dropInbox(id); toast("Dismissed"); return; }
+  if(act==="edit"){ openForm(mailToApp(m,ex.length?Math.max(...ex.map(a=>a.visit||1))+1:1),{fromMail:id}); return; }
+  if(act==="merge"){
+    const t=ex[ex.length-1], copy=JSON.parse(JSON.stringify(t));
+    for(const r of (m.roles||[])) if(r.title&&!copy.roles.some(x=>norm(x.title)===norm(r.title)))
+      copy.roles.push({id:uid(),title:r.title,jobType:r.jobType||"",stipend:r.stipend??null,base:r.base??null,ctc:r.ctc??null,gpa:r.gpa||"",applied:false});
+    for(const r of (m.rounds||[])) if(!copy.rounds.some(x=>x.type===r.type&&x.date===r.date))
+      copy.rounds.push({id:uid(),type:r.type,otherType:r.otherType||"",date:r.date||"",time:r.time||"",result:"pending",note:r.note||""});
+    if(!copy.deadline&&m.deadline) copy.deadline=m.deadline;
+    if(!copy.link&&m.link) copy.link=m.link;
+    if(!copy.gpa&&m.gpa) copy.roles.forEach(r=>{ if(!r.gpa) r.gpa=m.gpa; });
+    copy.notes=[copy.notes,(m.notes||[]).join("\n"),m.subject?`From email: ${m.subject}`:""].filter(Boolean).join("\n");
+    copy.updatedAt=new Date().toISOString();
+    await store.save(deriveFromRoles(copy)); await store.dropInbox(id); toast(`Merged into ${t.company} visit ${t.visit||1}`); return;
+  }
+  const visit = act==="visit" ? Math.max(...ex.map(a=>a.visit||1))+1 : 1;
+  await store.save(mailToApp(m,visit)); await store.dropInbox(id);
+  toast(`${m.company} added${act==="visit"?` as visit ${visit}`:""} — tick the roles you apply for`);
+}
+$("#inbox").addEventListener("click",e=>{
+  const b=e.target.closest("[data-mail]"); if(!b) return;
+  inboxAction(b.closest("[data-mid]").dataset.mid, b.dataset.mail);
+});
 function renderAlerts(){
   const live=apps.filter(a=>!a.archived);
   const over=[], today=[];
@@ -998,10 +1090,10 @@ function newVisitFrom(src){
 }
 function openForm(a,opts={}){
   form.reset(); $("#sug").hidden=true; $("#dupHint").hidden=true;
-  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),roles:JSON.parse(JSON.stringify(a?.roles||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null,newVisit:!!opts.newVisit};
+  draft={rounds:JSON.parse(JSON.stringify(a?.rounds||[])),reminders:JSON.parse(JSON.stringify(a?.reminders||[])),roles:JSON.parse(JSON.stringify(a?.roles||[])),resume:a?.resume||null,resumeFile:null,resumeRemoved:null,newVisit:!!opts.newVisit,fromMail:opts.fromMail||null};
   const nVisits=a?.company?visitsOf(a).length:0, multi=opts.newVisit||nVisits>1||(a?.visit||1)>1;
-  $("#dlgTitle").textContent=opts.newVisit?`${a.company} — visit ${a.visit}`:a?.id?"Edit "+a.company+(multi?` · ${visitName(a).replace(/<[^>]+>/g,"")}`:""):"Add a company"; $("#dlgSub").hidden=!!a?.id||!!opts.newVisit;
-  $("#delBtn").hidden=!a?.id; $("#newVisitBtn").hidden=!a?.id;
+  $("#dlgTitle").textContent=opts.fromMail?`From email — ${a.company}`:opts.newVisit?`${a.company} — visit ${a.visit}`:a?.id?"Edit "+a.company+(multi?` · ${visitName(a).replace(/<[^>]+>/g,"")}`:""):"Add a company"; $("#dlgSub").hidden=!!a?.id||!!opts.newVisit;
+  $("#delBtn").hidden=!a?.id||!!opts.fromMail; $("#newVisitBtn").hidden=!a?.id||!!opts.fromMail;
   $("#visitRow").hidden=!multi; F("visit").value=a?.visit||1; F("visitlabel").value=a?.visitLabel||"";
   F("id").value=a?.id||""; F("company").value=a?.company||""; F("tier").value=a?.tier||"";
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
@@ -1191,7 +1283,9 @@ form.addEventListener("submit",async e=>{
     if(draft.resumeFile){ $("#saveBtn").textContent="Uploading…"; const old=draft.resume; draft.resume=await storeResume(draft.resumeFile); draft.resumeFile=null; if(old&&old.kind!=="label") await deleteResume(old); }
     if(draft.resumeRemoved){ await deleteResume(draft.resumeRemoved); draft.resumeRemoved=null; }
     syncRolesToStatus();
-    const a=collect(); await store.save(a); dlg.close(); toast("Saved "+a.company); }
+    const a=collect(); await store.save(a);
+    if(draft.fromMail){ await store.dropInbox(draft.fromMail); draft.fromMail=null; }
+    dlg.close(); toast("Saved "+a.company); }
   catch(err){ toast("Couldn't save: "+(err?.message||err?.code||"unknown error")); }
   finally{ $("#saveBtn").disabled=false; $("#saveBtn").textContent="Save"; }
 });

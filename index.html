@@ -97,9 +97,11 @@ section[hidden]{display:none}
 .inbox{border:1px solid var(--line);background:var(--paper);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
 .inbox > h2{font-size:18px;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--wash)}
 .inbox .count{font-family:var(--mono);font-size:12px;background:var(--navy);color:var(--ink-on);border-radius:999px;padding:1px 9px}
-.inbox.empty-bar > h2{border-bottom:0}
-.mailbar{margin-left:auto;display:flex;align-items:center;gap:10px;font-weight:400;text-transform:none;letter-spacing:0}
-.mailbar .btn[disabled]{opacity:.6}
+#checkNow .ic{font-size:15px;line-height:1;display:inline-block}
+#checkNow.spin .ic{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#checkNow.spin .ic{animation:none}}
+@media (max-width:820px){#checkNow .lbl{display:none}#checkNow{padding:7px 11px}}
 .mail{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .mail:last-child{border-bottom:0}
 .mail .mh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
@@ -350,6 +352,7 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
     <span class="sync" id="sync"><i></i><span>Connecting…</span></span>
     <button class="btn ghost" id="settingsBtn" title="Profile, backup and import">Profile &amp; backup</button>
     <button class="btn ghost" id="signOutBtn" hidden>Sign out</button>
+    <button class="btn" id="checkNow" hidden><span class="ic">↻</span><span class="lbl">Update from email</span></button>
     <button class="btn primary" id="addBtn">+ Add company</button>
   </div>
 </header>
@@ -829,13 +832,15 @@ function lastCheckedText(){
 }
 function renderInbox(){
   const w=$("#inbox");
-  if(!store?.sb){ w.innerHTML=""; return; }                      // email sync only exists on the Supabase build
-  const bar=`<div class="mailbar"><span class="hint">${esc(lastCheckedText())}</span>
-      ${SYNC_URL?`<button class="btn xs" id="checkNow">Check email now</button>`:""}</div>`;
-  if(!inbox.length){ w.innerHTML=`<div class="inbox empty-bar"><h2>From your email
-      <span class="hint" style="font-weight:400;text-transform:none;letter-spacing:0">Nothing waiting</span>${bar}</h2></div>`; return; }
+  const btn=$("#checkNow");
+  if(btn){                                                       // lives in the header, always one click away
+    btn.hidden = !(store?.sb && SYNC_URL);
+    btn.title = lastCheckedText() + (syncState?.last_result ? " — " + syncState.last_result : "");
+    btn.classList.toggle("primary", inbox.length>0);
+  }
+  if(!store?.sb || !inbox.length){ w.innerHTML=""; return; }      // no panel unless something is waiting
   w.innerHTML=`<div class="inbox"><h2>From your email <span class="count">${inbox.length}</span>
-      <span class="hint" style="font-weight:400;text-transform:none;letter-spacing:0">Nothing is added until you approve it</span>${bar}</h2>
+      <span class="hint" style="font-weight:400;text-transform:none;letter-spacing:0">Nothing is added until you approve it</span></h2>
     ${inbox.map(m=>{
       const ex=apps.filter(a=>norm(a.company)===norm(m.company||""));
       const last=ex.length?Math.max(...ex.map(a=>a.visit||1)):0;
@@ -887,8 +892,8 @@ async function inboxAction(id,act){
   await store.save(mailToApp(m,visit)); await store.dropInbox(id);
   toast(`${m.company} added${act==="visit"?` as visit ${visit}`:""} — tick the roles you apply for`);
 }
+$("#checkNow").addEventListener("click",checkEmailNow);
 $("#inbox").addEventListener("click",e=>{
-  if(e.target.closest("#checkNow")){ checkEmailNow(); return; }
   const b=e.target.closest("[data-mail]"); if(!b) return;
   inboxAction(b.closest("[data-mid]").dataset.mid, b.dataset.mail);
 });
@@ -896,7 +901,7 @@ $("#inbox").addEventListener("click",e=>{
 let checking=false;
 async function checkEmailNow(){
   if(checking||!SYNC_URL) return; checking=true;
-  const btn=$("#checkNow"); if(btn){ btn.disabled=true; btn.textContent="Checking…"; }
+  const btn=$("#checkNow"); if(btn){ btn.disabled=true; btn.querySelector(".lbl").textContent="Checking…"; btn.classList.add("spin"); }
   const before=syncState?.last_run||"", url=SYNC_URL+(SYNC_URL.includes("?")?"&":"?")+"key="+encodeURIComponent(SYNC_KEY);
   try{ await fetch(url,{method:"GET"}); }
   catch{ try{ await fetch(url,{method:"GET",mode:"no-cors"}); }catch{} }   // the run still happens; we just can't read the reply
@@ -907,7 +912,7 @@ async function checkEmailNow(){
     if((syncState?.last_run||"")!==before){ found=true; break; }
   }
   checking=false;
-  const btn2=$("#checkNow"); if(btn2){ btn2.disabled=false; btn2.textContent="Check email now"; }
+  const btn2=$("#checkNow"); if(btn2){ btn2.disabled=false; btn2.querySelector(".lbl").textContent="Update from email"; btn2.classList.remove("spin"); }
   toast(found ? (syncState?.last_result||"Checked your email") : "Still running — it'll appear here shortly");
 }
 function renderAlerts(){

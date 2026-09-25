@@ -25,16 +25,39 @@ var SENDERS = ["pesuplacements@pes.edu", "placementsupport@pes.edu"];
 // How far back each run looks. Read or unread doesn't matter — already-queued
 // mails are remembered by id, so nothing is ever added twice.
 var LOOKBACK_DAYS = 7;
+// The background check runs this often. The tracker's "Check now" button can
+// always pull mail in between, so this doesn't need to be aggressive.
+var CHECK_EVERY_HOURS = 4;
+// Shared secret between this script and the tracker's Check now button.
+// Any string will do — it just has to match SYNC_KEY in index.html.
+var REFRESH_KEY = "pt27-refresh";
 
 // ---------------------------------------------------------------- entry points
 function installTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === "syncPlacementEmails") ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger("syncPlacementEmails").timeBased().everyMinutes(15).create();
-  Logger.log("Trigger installed — runs every 15 minutes.");
+  ScriptApp.newTrigger("syncPlacementEmails").timeBased().everyHours(CHECK_EVERY_HOURS).create();
+  Logger.log("Trigger installed — runs every " + CHECK_EVERY_HOURS + " hours. "
+           + "Use the Check now button in the tracker whenever you want it sooner.");
 }
 function runOnce() { syncPlacementEmails(); }
+
+/**
+ * Lets the tracker's "Check now" button run this on demand.
+ * Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone.
+ * Copy the /exec URL into index.html (SYNC_URL) together with REFRESH_KEY.
+ */
+function doGet(e) {
+  var key = (e && e.parameter && e.parameter.key) || "";
+  if (key !== REFRESH_KEY) {
+    return ContentService.createTextOutput(JSON.stringify({ ok:false, error:"bad key" }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+  var summary = syncPlacementEmails();
+  return ContentService.createTextOutput(JSON.stringify({ ok:true, queued:summary.queued, skipped:summary.skipped }))
+                       .setMimeType(ContentService.MimeType.JSON);
+}
 
 function syncPlacementEmails() {
   var props = PropertiesService.getScriptProperties();
@@ -42,10 +65,10 @@ function syncPlacementEmails() {
       key = props.getProperty("SUPABASE_ANON_KEY"),
       email = props.getProperty("TRACKER_EMAIL"),
       pass = props.getProperty("TRACKER_PASSWORD");
-  if (!url || !key || !email || !pass) { Logger.log("Missing Script Properties — see the setup notes at the top."); return; }
+  if (!url || !key || !email || !pass) { Logger.log("Missing Script Properties — see the setup notes at the top."); return { queued:0, skipped:0, error:"config" }; }
 
   var auth = signIn(url, key, email, pass);
-  if (!auth) { Logger.log("Could not sign in to Supabase — check TRACKER_EMAIL / TRACKER_PASSWORD."); return; }
+  if (!auth) { Logger.log("Could not sign in to Supabase — check TRACKER_EMAIL / TRACKER_PASSWORD."); return { queued:0, skipped:0, error:"auth" }; }
 
   var cutoffMs = new Date(CUTOFF).getTime();
   var seen = JSON.parse(props.getProperty("SEEN_IDS") || "[]");
@@ -75,6 +98,8 @@ function syncPlacementEmails() {
       parsed.from = msg.getFrom();
       parsed.permalink = "https://mail.google.com/mail/u/0/#inbox/" + thread.getId();
       parsed.raw = msg.getPlainBody().slice(0, 4000);
+      parsed.attachments = msg.getAttachments().map(function (at) { return at.getName(); });
+      addRolesFromAttachments(parsed);
 
       if (upsertInbox(url, key, auth.token, auth.userId, id, parsed)) {
         queued++; seen.push(id); seenSet[id] = 1;
@@ -83,7 +108,22 @@ function syncPlacementEmails() {
   });
 
   props.setProperty("SEEN_IDS", JSON.stringify(seen.slice(-500)));
-  Logger.log("Queued " + queued + " email(s); skipped " + skipped + ".");
+  var summary = "Queued " + queued + " email(s); skipped " + skipped + ".";
+  Logger.log(summary);
+  recordRun(url, key, auth.token, auth.userId, summary);
+  return { queued: queued, skipped: skipped };
+}
+
+function recordRun(url, key, token, userId, summary) {
+  try {
+    UrlFetchApp.fetch(url + "/rest/v1/sync_state?on_conflict=user_id", {
+      method: "post", contentType: "application/json",
+      headers: { apikey: key, Authorization: "Bearer " + token, Prefer: "resolution=merge-duplicates" },
+      payload: JSON.stringify([{ user_id: userId, last_run: new Date().toISOString(),
+                                 last_result: summary, updated_at: new Date().toISOString() }]),
+      muteHttpExceptions: true
+    });
+  } catch (err) { Logger.log("Could not record run: " + err); }
 }
 
 function fromWatchedSender(from) {
@@ -218,22 +258,67 @@ function parsePlacementEmail(subject, body, receivedISO) {
     if (mc) ctc = parseFloat(mc[1]);
   }
 
-  var title = roleLn || "";
-  if (!title && evt) { var parts = evt.split("|"); if (parts.length >= 2) title = parts[1].trim(); }
-  if (!title) {
-    var mt = S.match(/\|\s*(.+?)\s*(?:\(|$)/);
-    if (mt) title = mt[1].replace(/\bPESU\b|\bPES\b/gi,"")
-                         .replace(/\b(hiring|recruitment|drive|opportunity|process)\b/gi,"")
-                         .replace(/\s{2,}/g," ").trim();
-  }
-  if (!title) { var mr = B.match(/for the below\s+(\w+)\s+Role/i); if (mr) title = mr[1] + " Role"; }
-
   var gpa = "";
   if (eligLn) { var mg = eligLn.match(/UG\s*CGPA:\s*([\d.]+)/i); if (mg) gpa = mg[1]; }
   if (!gpa) { var mg2 = B.match(/CGPA\s*(?:above|of|:|≥|>=)\s*([\d.]+)/i); if (mg2) gpa = mg2[1]; }
   out.gpa = gpa;
-  out.roles.push({ title:(title||"").replace(/\s+/g," ").trim(), jobType:jobType,
-                   stipend:stipend, base:null, ctc:ctc, gpa:gpa, applied:false });
+
+  // ---------------------------------------------------------------- roles
+  // A mail can advertise several positions. Collect every title we can find,
+  // keep the order, drop duplicates, and never invent one.
+  var titles = [];
+  function addTitle(t) {
+    t = String(t || "")
+          .replace(/^[\s*•‣●\-–—.)\]]+/, "")   // bullets / numbering
+          .replace(/^\d+[.)]\s*/, "")
+          .replace(/\s*[-–—(].*(?:jd|job description).*$/i, "")
+          .replace(/\s{2,}/g, " ").trim();
+    if (!t || t.length < 3 || t.length > 60) return;
+    if (/^(dear|regards|thanks|note|criteria|eligibility|details|timeline|venue|location|stipend|ctc|cgpa)\b/i.test(t)) return;
+    for (var i = 0; i < titles.length; i++) if (titles[i].toLowerCase() === t.toLowerCase()) return;
+    titles.push(t);
+  }
+
+  // every "Role:" line, not just the first
+  var roleLines = B.match(/^[ \t]*Role\s*:\s*(.+)$/gmi) || [];
+  roleLines.forEach(function (l) { addTitle(l.replace(/^[ \t]*Role\s*:\s*/i, "")); });
+
+  // "Event: HPE | IT Developer – Intern | Drive"
+  if (!titles.length && evt) { var parts = evt.split("|"); if (parts.length >= 2) addTitle(parts[1]); }
+
+  // a list introduced by "for the following roles", "below roles", "positions:" …
+  var JOBWORD = /engineer|developer|analyst|scientist|consultant|designer|manager|associate|trainee|architect|specialist|administrator|\bsde\b|\bswe\b|\bsdet\b|\bqa\b|intern\b/i;
+  var NOTAROLE = /^(kindly|please|students?|graduating|cgpa|no\s+backlog|b\.?tech|m\.?tech|internship details|internship timeline|tentative|timeline|regards|criteria|eligib|monthly|stipend|location|venue|date|following|note)/i;
+  var intro = B.match(/(?:following|below|these)\s+(?:\d+\s+)?(?:roles?|positions?|openings?|profiles?)[^\n]*:?\s*\n([\s\S]{0,400})/i);
+  if (intro) {
+    intro[1].split("\n").forEach(function (l) {
+      var t = String(l).replace(/^[\s*•‣●\-–—]+/, "").replace(/^\d+[.)]\s*/, "").trim();
+      if (!t || t.length < 3) return;
+      if (NOTAROLE.test(t)) return;              // criteria and logistics, not a job title
+      if (/:/.test(t)) return;                   // "Internship Timeline: ..." style lines
+      if (/\b(19|20)\d{2}\b/.test(t)) return;    // years / dates
+      if (!JOBWORD.test(t)) return;              // must actually read like a role
+      addTitle(t);
+    });
+  }
+
+  if (!titles.length) {
+    var mt = S.match(/\|\s*(.+?)\s*(?:\(|$)/);
+    if (mt) addTitle(mt[1].replace(/\bPESU\b|\bPES\b/gi,"")
+                          .replace(/\b(hiring|recruitment|drive|opportunity|process)\b/gi,""));
+  }
+  if (!titles.length) addTitle("");            // keeps a single blank role so the card still works
+
+  var perRole = titles.length > 1;             // shared pay figures only make sense on a single role
+  titles.forEach(function (t, i) {
+    out.roles.push({ title: t, jobType: jobType,
+                     stipend: (!perRole || i === 0) ? stipend : null,
+                     base: null,
+                     ctc: (!perRole || i === 0) ? ctc : null,
+                     gpa: gpa, applied: false });
+  });
+  if (!out.roles.length) out.roles.push({ title:"", jobType:jobType, stipend:stipend, base:null, ctc:ctc, gpa:gpa, applied:false });
+  if (perRole) out.notes.push("This mail listed " + titles.length + " roles — pay shown against the first only, check the JDs.");
 
   if (eligLn) out.notes.push("Eligibility — " + eligLn.replace(/\s*\|\s*/g, " | "));
   else if (/no\s+backlog/i.test(B)) out.notes.push("Eligibility — no backlogs");
@@ -356,6 +441,49 @@ function parsePlacementEmail(subject, body, receivedISO) {
 
   out.confidence = (isTemplate && out.company && out.roles[0].title && (ctc!=null||stipend!=null)) ? "high" : "partial";
   return out;
+}
+
+/**
+ * Placement mails often carry one JD per role as an attachment and say nothing
+ * useful in the body. Turn "Apple_Ads_Data_Scientist_JD.pdf" into a role.
+ */
+function addRolesFromAttachments(parsed) {
+  var names = parsed.attachments || [];
+  if (!names.length) return;
+  var made = [];
+  names.forEach(function (n) {
+    if (!/\.(pdf|docx?|rtf)$/i.test(n)) return;
+    var t = n.replace(/\.[a-z]+$/i, "")
+             .replace(/[_\-]+/g, " ")
+             .replace(/\b(jd|job description|final|v\d+|copy|updated|\d{4})\b/gi, "")
+             .replace(/\s{2,}/g, " ").trim();
+    if (parsed.company) {
+      var esc = parsed.company.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      t = t.replace(new RegExp("^" + esc + "\\s*", "i"), "").trim();
+    }
+    if (t.length < 3 || t.length > 60) return;
+    made.push(t);
+  });
+  if (!made.length) return;
+
+  var blank = parsed.roles.filter(function (r) { return !r.title; });
+  var named = parsed.roles.filter(function (r) { return r.title; });
+  // If the body gave us nothing (or one vague title) but the JDs name the roles, trust the JDs.
+  if (!named.length || (named.length === 1 && made.length > 1)) {
+    var base = named[0] || blank[0] || { jobType:"", stipend:null, base:null, ctc:null, gpa:"" };
+    parsed.roles = made.map(function (t, i) {
+      return { title:t, jobType:base.jobType||"", stipend:i===0?base.stipend:null, base:null,
+               ctc:i===0?base.ctc:null, gpa:base.gpa||"", applied:false };
+    });
+    if (made.length > 1) parsed.notes.push(made.length + " job descriptions attached: " + made.join(" · "));
+  } else {
+    made.forEach(function (t) {
+      for (var i = 0; i < parsed.roles.length; i++)
+        if (parsed.roles[i].title.toLowerCase() === t.toLowerCase()) return;
+      parsed.roles.push({ title:t, jobType:"", stipend:null, base:null, ctc:null, gpa:parsed.gpa||"", applied:false });
+    });
+  }
+  parsed.notes.push("Attachments: " + names.join(", "));
 }
 
 function mapRound(name) {

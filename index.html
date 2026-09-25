@@ -589,6 +589,9 @@ const STATUSES = [
 const SLABEL = Object.fromEntries(STATUSES);
 const OUT = new Set(["rejected","withdrawn","skipped","ineligible"]);
 const REASONED = new Set(["rejected","withdrawn","skipped"]);   // statuses that carry a reason note
+// The Cards view defaults to live processes only. Everything else stays one
+// chip away: not applied yet, concluded (accepted), or out of the running.
+const INACTIVE = new Set([...OUT,"notapplied","accepted"]);
 const SRANK = {notapplied:0,applied:1,oa:2,shortlisted:3,interview:4,offer:5,accepted:5,rejected:-1,withdrawn:-1,skipped:-1,ineligible:-1};
 const OUT_LABEL = {rejected:"Rejected",withdrawn:"Withdrew",skipped:"Didn't apply"};
 const roundLabel = r => r.type==="Other" && r.otherType ? r.otherType : (r.type||"Other");
@@ -795,7 +798,7 @@ function visibleApps(){
   // in the Cards layout, rejected / withdrawn / not-eligible stay out of the way unless asked for;
   // Board and Table always show them
   const hideOut = mode==="cards" && !showArch;
-  let list=apps.filter(a=>showArch||(!a.archived&&(!hideOut||!OUT.has(a.status)||statusFilter===a.status)));
+  let list=apps.filter(a=>showArch||(!a.archived&&(!hideOut||!INACTIVE.has(a.status)||statusFilter===a.status)));
   if(statusFilter!=="all") list=list.filter(a=>a.status===statusFilter);
   if(q){ const k=q.toLowerCase(); list=list.filter(a=>[a.company,a.role,a.notes,a.outcome,a.location,a.contact,...(a.rounds.map(r=>r.note))].join(" ").toLowerCase().includes(k)); }
   const cmp={
@@ -890,7 +893,7 @@ async function inboxAction(id,act){
   }
   const visit = act==="visit" ? Math.max(...ex.map(a=>a.visit||1))+1 : 1;
   await store.save(mailToApp(m,visit)); await store.dropInbox(id);
-  toast(`${m.company} added${act==="visit"?` as visit ${visit}`:""} — tick the roles you apply for`);
+  toast(`${m.company} added${act==="visit"?` as visit ${visit}`:""} — see it under the Not applied chip`);
 }
 $("#checkNow").addEventListener("click",checkEmailNow);
 $("#inbox").addEventListener("click",e=>{
@@ -936,8 +939,9 @@ function renderStrip(){
   ].map(([l,v,c])=>`<div class="stat ${c}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
 }
 function renderChips(){
-  const live=apps.filter(a=>showArch||!a.archived); const cnt=s=>s==="all"?live.filter(a=>showArch||mode!=="cards"||!OUT.has(a.status)).length:live.filter(a=>a.status===s).length;
-  $("#statusChips").innerHTML=[["all","All"],...STATUSES].filter(([k])=>k==="all"||cnt(k)||statusFilter===k).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${statusFilter===k}">${l}<span class="c">${cnt(k)}</span></button>`).join("");
+  const live=apps.filter(a=>showArch||!a.archived); const cnt=s=>s==="all"?live.filter(a=>showArch||mode!=="cards"||!INACTIVE.has(a.status)).length:live.filter(a=>a.status===s).length;
+  const allLabel = (mode==="cards"&&!showArch) ? "Live" : "All";
+  $("#statusChips").innerHTML=[["all",allLabel],...STATUSES].filter(([k])=>k==="all"||cnt(k)||statusFilter===k).map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${statusFilter===k}">${l}<span class="c">${cnt(k)}</span></button>`).join("");
 }
 function statusSelect(a){ return `<select class="statussel" data-quick="${a.id}" aria-label="Status">${STATUSES.map(([k,l])=>`<option value="${k}" ${a.status===k?"selected":""}>${l}</option>`).join("")}</select>`; }
 // visits of the same company (case/punctuation-insensitive), in visit order
@@ -987,7 +991,7 @@ function renderList(){
   const list=visibleApps(); const w=$("#listArea");
   document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===mode));
   if(!apps.length){ w.innerHTML=`<div class="empty"><h3>Nothing tracked yet</h3>Add the first company that opens for your batch, or browse the <a href="#" data-view="ref">2026 reference</a> and hit Track on the ones you expect back.</div>`; return; }
-  if(!list.length){ const hidden=mode==="cards"?apps.filter(a=>!a.archived&&OUT.has(a.status)).length:0; w.innerHTML=`<div class="empty">${statusFilter==="all"&&!q&&hidden?`Nothing active right now. ${hidden} rejected / withdrawn compan${hidden===1?"y is":"ies are"} kept out of the way — use the <b>Rejected</b> chip or "Show rejected &amp; archived" to see them.`:"No companies match this filter."}</div>`; return; }
+  if(!list.length){ const hidden=mode==="cards"?apps.filter(a=>!a.archived&&INACTIVE.has(a.status)).length:0; w.innerHTML=`<div class="empty">${statusFilter==="all"&&!q&&hidden?`No live processes right now. ${hidden} compan${hidden===1?"y is":"ies are"} sitting under the other chips — not applied yet, accepted, or out of the running.`:"No companies match this filter."}</div>`; return; }
   if(mode==="cards"){
     // group visible visits under their company, keeping the sort order of the first visit seen
     const groups=new Map(); for(const a of list){ const k=norm(a.company); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(a); }

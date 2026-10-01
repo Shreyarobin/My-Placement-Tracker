@@ -44,6 +44,21 @@ function installTrigger() {
 function runOnce() { syncPlacementEmails(); }
 
 /**
+ * Re-reads the last RESYNC_DAYS days and queues everything again, even mail
+ * already seen. Use after a parser fix, or if something never showed up.
+ * Anything still sitting in the tracker's inbox is left alone.
+ */
+var FORCE_RESYNC = false;
+var RESYNC_DAYS = 4;
+function resyncRecent() {
+  FORCE_RESYNC = true;
+  var keepLookback = LOOKBACK_DAYS;
+  LOOKBACK_DAYS = RESYNC_DAYS;
+  try { syncPlacementEmails(); }
+  finally { FORCE_RESYNC = false; LOOKBACK_DAYS = keepLookback; }
+}
+
+/**
  * Lets the tracker's "Check now" button run this on demand.
  * Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone.
  * Copy the /exec URL into index.html (SYNC_URL) together with REFRESH_KEY.
@@ -80,11 +95,12 @@ function syncPlacementEmails() {
   var since = Utilities.formatDate(new Date(windowMs - 864e5), "GMT+5:30", "yyyy/MM/dd");
   var query = "after:" + since + " (" + SENDERS.map(function (s) { return "from:" + s; }).join(" OR ") + ")";
 
-  var queued = 0, skipped = 0;
+  var queued = 0, skipped = 0, failed = 0;
   GmailApp.search(query, 0, 100).forEach(function (thread) {
     thread.getMessages().forEach(function (msg) {
+     try {
       var id = msg.getId();
-      if (seenSet[id]) { skipped++; return; }
+      if (seenSet[id] && !FORCE_RESYNC) { skipped++; return; }
       if (msg.getDate().getTime() < cutoffMs) { skipped++; return; }
       if (!fromWatchedSender(msg.getFrom())) { skipped++; return; }
 
@@ -102,13 +118,18 @@ function syncPlacementEmails() {
       addRolesFromAttachments(parsed);
 
       if (upsertInbox(url, key, auth.token, auth.userId, id, parsed)) {
-        queued++; seen.push(id); seenSet[id] = 1;
+        queued++; if (!seenSet[id]) { seen.push(id); seenSet[id] = 1; }
       }
+     } catch (err) {                      // one odd email must never stop the rest
+       failed++;
+       Logger.log("Could not handle a message: " + err + (err && err.stack ? "\n" + err.stack : ""));
+     }
     });
   });
 
   props.setProperty("SEEN_IDS", JSON.stringify(seen.slice(-500)));
-  var summary = "Queued " + queued + " email(s); skipped " + skipped + ".";
+  var summary = "Queued " + queued + " email(s); skipped " + skipped
+              + (failed ? "; " + failed + " could not be read." : ".");
   Logger.log(summary);
   recordRun(url, key, auth.token, auth.userId, summary);
   return { queued: queued, skipped: skipped };
@@ -202,7 +223,9 @@ function parsePlacementEmail(subject, body, receivedISO) {
     var yy = y || year0;
     return yy + "-" + pad(mo+1) + "-" + pad(d);
   }
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  // Number() matters: a captured "02" compares as 2 but concatenates as "002",
+  // which silently produced dates like 2026-10-002 and broke the whole run.
+  function pad(n) { n = Number(n); return (n < 10 ? "0" : "") + n; }
   function findDate(str) {
     if (!str) return "";
     var m = String(str).match(/(\d{1,2})\s*(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?\s*(\d{4})?/);
@@ -494,7 +517,11 @@ function mapRound(name) {
   if (/resume|shortlist|screening/.test(n)) return "Application";
   if (/managerial/.test(n)) return "Managerial";
   if (/\bhr\b/.test(n)) return "HR";
-  if (/technical|tech\b|interview/.test(n)) return "Technical R1";
+  if (/technical|tech\b|interview/.test(n)) {          // "Technical Interview-2", "Tech round 3"
+    if (/\b(3|iii|three)\b/.test(n)) return "Technical R3";
+    if (/\b(2|ii|two)\b/.test(n)) return "Technical R2";
+    return "Technical R1";
+  }
   if (/ppt|presentation|pre[- ]?placement talk/.test(n)) return "PPT";
   if (/offer|result/.test(n)) return "Offer";
   return "Other";

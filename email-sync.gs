@@ -31,6 +31,9 @@ var CHECK_EVERY_HOURS = 4;
 // Shared secret between this script and the tracker's Check now button.
 // Any string will do — it just has to match SYNC_KEY in index.html.
 var REFRESH_KEY = "pt27-refresh";
+// Bumped whenever this file changes, so a stale web-app deployment is obvious:
+// the tracker shows this in the toast after a refresh.
+var VERSION = "v8";
 
 // ---------------------------------------------------------------- entry points
 function installTrigger() {
@@ -66,11 +69,11 @@ function resyncRecent() {
 function doGet(e) {
   var key = (e && e.parameter && e.parameter.key) || "";
   if (key !== REFRESH_KEY) {
-    return ContentService.createTextOutput(JSON.stringify({ ok:false, error:"bad key" }))
+    return ContentService.createTextOutput(JSON.stringify({ ok:false, version:VERSION, error:"bad key" }))
                          .setMimeType(ContentService.MimeType.JSON);
   }
   var summary = syncPlacementEmails();
-  return ContentService.createTextOutput(JSON.stringify({ ok:true, queued:summary.queued, skipped:summary.skipped }))
+  return ContentService.createTextOutput(JSON.stringify({ ok:true, version:VERSION, queued:summary.queued, skipped:summary.skipped }))
                        .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -128,7 +131,7 @@ function syncPlacementEmails() {
   });
 
   props.setProperty("SEEN_IDS", JSON.stringify(seen.slice(-500)));
-  var summary = "Queued " + queued + " email(s); skipped " + skipped
+  var summary = VERSION + " · Queued " + queued + " email(s); skipped " + skipped
               + (failed ? "; " + failed + " could not be read." : ".");
   Logger.log(summary);
   recordRun(url, key, auth.token, auth.userId, summary);
@@ -210,7 +213,10 @@ function parsePlacementEmail(subject, body, receivedISO) {
   var JUNK_CO = /^(fwd?|re|invitation|dear|all|hi|hello|urgent|important|reminder|update|notice|attention)$/i;
   var year0 = new Date(receivedISO || Date.now()).getFullYear();
   var lines0;
+  // stipend / base / ctc / gpa are recorded for the drive as a whole; a role may
+  // also carry its own figures, but the drive-level ones are always filled in.
   var out = { company:"", roles:[], tier:"", location:"", branches:"", gpa:"", deadline:"", deadlineTime:"",
+              stipend:null, base:null, ctc:null,
               rounds:[], reminders:[], link:"", notes:[], confidence:"partial", subject:S, receivedAt:receivedISO||"" };
 
   function line(re) { var m = B.match(re); return m ? m[1].trim() : ""; }
@@ -331,6 +337,8 @@ function parsePlacementEmail(subject, body, receivedISO) {
                           .replace(/\b(hiring|recruitment|drive|opportunity|process)\b/gi,""));
   }
   if (!titles.length) addTitle("");            // keeps a single blank role so the card still works
+
+  out.stipend = stipend; out.base = null; out.ctc = ctc;   // always recorded for the drive
 
   var perRole = titles.length > 1;             // shared pay figures only make sense on a single role
   titles.forEach(function (t, i) {

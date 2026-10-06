@@ -443,10 +443,22 @@ input[type=file]::file-selector-button{border:1px solid var(--line2);background:
         </div>
       </fieldset>
 
+      <fieldset class="fs"><legend>Pay &amp; eligibility</legend>
+        <div class="grid3">
+          <div class="field"><label for="f-stipend">Stipend ₹/month</label><input id="f-stipend" type="number" min="0" step="500"></div>
+          <div class="field"><label for="f-base">Base LPA</label><input id="f-base" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="f-ctc">CTC LPA</label><input id="f-ctc" type="number" min="0" step="0.01"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="f-gpa">CGPA cutoff</label><input id="f-gpa" type="text" placeholder="7.5"></div>
+          <div class="field"><label class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">These apply to the whole drive. A role only needs its own figures when they differ.</label></div>
+        </div>
+        <div class="hint" id="eligHint"></div>
+      </fieldset>
+
       <fieldset class="fs"><legend>Roles offered <button type="button" class="btn xs" id="addRole" style="margin-left:auto">+ Add role</button></legend>
         <div class="rowlist" id="roles"></div>
-        <div class="hint" id="rolesHint">List every role this company is hiring for, then tick the ones you applied to. Pay and cutoff are per role.</div>
-        <div class="hint" id="eligHint" style="margin-top:6px"></div>
+        <div class="hint" id="rolesHint">List every role this company is hiring for, then tick the ones you applied to. Leave a role's pay blank to use the drive figures above.</div>
       </fieldset>
 
       <fieldset class="fs"><legend>Status</legend>
@@ -646,12 +658,21 @@ function deriveFromRoles(a){
   const applied=a.roles.filter(r=>r.applied), pick=applied.length?applied:a.roles;
   a.role=applied.map(r=>r.title).filter(Boolean).join(", ") || (a.roles.length?a.roles.length+" roles":"" );
   a.appliedCount=applied.length;
-  const nums=k=>pick.map(r=>+r[k]).filter(n=>!isNaN(n)&&n>0);
-  a.ctc=nums("ctc").length?Math.max(...nums("ctc")):null; a.base=nums("base").length?Math.max(...nums("base")):null; a.stipend=nums("stipend").length?Math.max(...nums("stipend")):null;
-  const gpas=pick.map(r=>gpaNum(r.gpa)).filter(g=>g!=null); a.gpa=gpas.length?String(Math.min(...gpas)):"";
   a.jobType=[...new Set(pick.map(r=>r.jobType).filter(Boolean))].join(" / ");
+  // Pay and cutoff belong to the drive. Only fall back to the roles when the
+  // drive-level figure was left blank, so a company with no named role still
+  // carries its CTC, stipend and cutoff.
+  const nums=k=>pick.map(r=>+r[k]).filter(n=>!isNaN(n)&&n>0);
+  const blank=v=>v===null||v===undefined||v==="";
+  if(blank(a.ctc))     a.ctc     = nums("ctc").length     ? Math.max(...nums("ctc"))     : null;
+  if(blank(a.base))    a.base    = nums("base").length    ? Math.max(...nums("base"))    : null;
+  if(blank(a.stipend)) a.stipend = nums("stipend").length ? Math.max(...nums("stipend")) : null;
+  if(blank(a.gpa)){ const g=pick.map(r=>gpaNum(r.gpa)).filter(x=>x!=null); a.gpa=g.length?String(Math.min(...g)):""; }
   return a;
 }
+// true when a role states something different from the drive-level figure
+const roleDiffers = (r,a) => (r.ctc!=null&&+r.ctc!==+a.ctc) || (r.stipend!=null&&+r.stipend!==+a.stipend) ||
+                             (r.gpa&&String(r.gpa)!==String(a.gpa));
 const localStore={
   init(){ apps=(LS("pt27.apps")||[]).map(migrate); profile=LS("pt27.profile")||{}; render(); setSync("local","Saved in this browser only"); },
   async save(a){ const i=apps.findIndex(x=>x.id===a.id); if(i>=0)apps[i]=a; else apps.push(a); LS("pt27.apps",apps); render(); },
@@ -821,6 +842,7 @@ function mailToApp(m,visit){
   return deriveFromRoles({ id:uid(), createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
     company:m.company||"(unnamed)", visit:visit||1, visitLabel:"", tier:m.tier||"", location:m.location||"",
     link:m.link||"", priority:0, branches:m.branches||"", deadline:m.deadline||"",
+    stipend:m.stipend??null, base:m.base??null, ctc:m.ctc??null, gpa:m.gpa||"",
     roles:(m.roles||[]).filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:uid(),title:r.title||"",jobType:r.jobType||"",
       stipend:r.stipend??null,base:r.base??null,ctc:r.ctc??null,gpa:r.gpa||"",applied:false})),
     status:"notapplied", outcome:"", rejection:null,
@@ -850,8 +872,9 @@ function renderInbox(){
       const ex=apps.filter(a=>norm(a.company)===norm(m.company||""));
       const last=ex.length?Math.max(...ex.map(a=>a.visit||1)):0;
       const r=(m.roles||[])[0]||{};
-      const cells=[["Role",[r.title,r.jobType].filter(Boolean).join(" · ")],["Tier",m.tier],
-        ["Stipend",r.stipend?fmtMoney(r.stipend)+"/mo":""],["CTC",r.ctc?r.ctc+" LPA":""],
+      const roleList=(m.roles||[]).map(x=>x.title).filter(Boolean);
+      const cells=[["Role",roleList.length>1?roleList.join(" · "):[r.title,r.jobType].filter(Boolean).join(" · ")],["Tier",m.tier],
+        ["Stipend",(m.stipend??r.stipend)?fmtMoney(m.stipend??r.stipend)+"/mo":""],["CTC",(m.ctc??r.ctc)?(m.ctc??r.ctc)+" LPA":""],
         ["CGPA cutoff",m.gpa],["Branches",m.branches],["Location",m.location],
         ["Apply by",m.deadline?fmtD(m.deadline)+(m.deadlineTime?" "+m.deadlineTime:""):""],
         ["Rounds",(m.rounds||[]).map(x=>roundLabel(x)+(x.date?" "+fmtD(x.date):"")).join(" → ")],
@@ -888,6 +911,10 @@ async function inboxAction(id,act){
       copy.reminders.push({id:uid(),date:r.date,text:r.text||"Reminder",done:false});
     if(!copy.deadline&&m.deadline) copy.deadline=m.deadline;
     if(!copy.link&&m.link) copy.link=m.link;
+    if(copy.ctc==null&&m.ctc!=null) copy.ctc=m.ctc;
+    if(copy.stipend==null&&m.stipend!=null) copy.stipend=m.stipend;
+    if(copy.base==null&&m.base!=null) copy.base=m.base;
+    if(!copy.gpa&&m.gpa) copy.gpa=m.gpa;
     if(!copy.gpa&&m.gpa) copy.roles.forEach(r=>{ if(!r.gpa) r.gpa=m.gpa; });
     copy.notes=[copy.notes,(m.notes||[]).join("\n"),m.subject?`From email: ${m.subject}`:""].filter(Boolean).join("\n");
     copy.updatedAt=new Date().toISOString();
@@ -918,7 +945,8 @@ async function checkEmailNow(){
   }
   checking=false;
   const btn2=$("#checkNow"); if(btn2){ btn2.disabled=false; btn2.querySelector(".lbl").textContent="Update from email"; btn2.classList.remove("spin"); }
-  toast(found ? (syncState?.last_result||"Checked your email") : "Still running — it'll appear here shortly");
+  toast(found ? (syncState?.last_result||"Checked your email")
+              : "The email script didn't finish — in Apps Script: Deploy → Manage deployments → ✏️ → New version");
 }
 function renderAlerts(){
   const live=apps.filter(a=>!a.archived);
@@ -960,8 +988,11 @@ function visitHTML(a,compact,showVisit){
     <div class="top"><div>${showVisit?`<div class="vname">${visitName(a)}</div>`:""}<div class="role">${a.appliedCount?`Applied: ${esc(a.role)}`:a.roles.length?`${a.roles.length} role${a.roles.length>1?"s":""} · ${NO_APPLY.has(a.status)?"considered":"not applied yet"}`:"No roles listed"}</div></div>
       <div style="text-align:right">${a.priority?`<div class="stars">${"★".repeat(a.priority)}</div>`:""}<span class="dot ${a.status}"></span>${statusSelect(a)}</div></div>
     <div class="tags">${a.tier?`<span class="tag tier">${esc(a.tier)}</span>`:""}${el.map(e=>`<span class="tag ${e.c}">${e.t}</span>`).join("")}</div>
-    ${a.roles.length?`<div class="rolelist">${(compact?a.roles.filter(r=>r.applied):a.roles).map(r=>`<div class="ro ${r.applied?"applied":""}"><span class="tick">${r.applied?"✓":"○"}</span><span style="flex:1">${esc(r.title||"(untitled)")}${r.jobType?` <span class="hint">${esc(r.jobType)}</span>`:""}</span><span class="m">${[r.ctc?r.ctc+" LPA":"",r.stipend?fmtMoney(r.stipend)+"/mo":"",r.gpa?"cutoff "+esc(r.gpa):""].filter(Boolean).join(" · ")}</span></div>`).join("")}</div>`:""}
+    ${a.roles.length?`<div class="rolelist">${(compact?a.roles.filter(r=>r.applied):a.roles).map(r=>`<div class="ro ${r.applied?"applied":""}"><span class="tick">${r.applied?"✓":"○"}</span><span style="flex:1">${esc(r.title||"(untitled)")}${r.jobType?` <span class="hint">${esc(r.jobType)}</span>`:""}</span><span class="m">${roleDiffers(r,a)?[r.ctc?r.ctc+" LPA":"",r.stipend?fmtMoney(r.stipend)+"/mo":"",r.gpa?"cutoff "+esc(r.gpa):""].filter(Boolean).join(" · "):""}</span></div>`).join("")}</div>`:""}
     <dl class="kv">
+      ${(a.ctc!=null||a.base!=null||a.stipend!=null)?`<dt>Pay</dt><dd class="num">${[a.ctc!=null?a.ctc+" LPA":"",a.base!=null?"base "+a.base:"",a.stipend!=null?fmtMoney(a.stipend)+"/mo":""].filter(Boolean).join(" · ")}</dd>`:""}
+      ${a.gpa?`<dt>Cutoff</dt><dd class="num">${esc(a.gpa)}</dd>`:""}
+      ${a.branches&&!compact?`<dt>Branches</dt><dd>${esc(a.branches)}</dd>`:""}
       ${a.resume&&!compact?`<dt>Resume</dt><dd>${resumeLinkHTML(a.resume,a.id)}</dd>`:""}
       ${a.deadline&&SRANK[a.status]===0?`<dt>Apply by</dt><dd class="num">${fmtD(a.deadline)} <span style="color:var(--ink3)">${rel(daysFrom(a.deadline))}</span></dd>`:""}
       ${(a.status==="offer"||a.status==="accepted")&&(a.offer?.ctc||a.offer?.by)?`<dt>Offer</dt><dd class="num">${a.offer.ctc?a.offer.ctc+" LPA":""}${a.offer.by?` · accept by ${fmtD(a.offer.by)}`:""}${a.offer.accepted==="yes"?" · accepted":a.offer.accepted==="no"?" · declined":""}</dd>`:""}
@@ -1130,7 +1161,7 @@ function renderRoles(){
 function addRole(r={},focus){ draft.roles.push({id:uid(),title:"",jobType:"",stipend:null,base:null,ctc:null,gpa:"",applied:false,...r}); renderRoles(); if(focus){ const el=$("#roles .rrow:last-child input[type=text]"); el&&el.focus(); } }
 function guessType(r,tier){ return tier==="Internship Only"?"Intern":tier==="Summer PPO"?"PPO":(typeof r.stipend==="number"&&typeof r.ctc==="number")?"Intern + FTE":typeof r.ctc==="number"?"FTE":typeof r.stipend==="number"?"Intern":""; }
 function eligHint(){
-  const tmp=deriveFromRoles({roles:draft.roles||[]}); const el=eligibility({gpa:tmp.gpa,branches:F("branches").value});
+  const tmp=deriveFromRoles({roles:draft.roles||[],gpa:F("gpa").value.trim()}); const el=eligibility({gpa:tmp.gpa,branches:F("branches").value});
   $("#eligHint").innerHTML=el.map(e=>`<span class="hint ${e.c}" style="margin-right:12px">${e.t}</span>`).join("")||(profile.cgpa?"":`<span class="hint">Set your CGPA and branch under Profile to check eligibility automatically.</span>`); }
 function dupCheck(){
   const id=F("id").value, k=norm(F("company").value); const d=apps.filter(a=>a.id!==id&&norm(a.company)===k); const h=$("#dupHint"); h.hidden=!d.length||draft.newVisit;
@@ -1152,6 +1183,7 @@ function openForm(a,opts={}){
   F("id").value=a?.id||""; F("company").value=a?.company||""; F("tier").value=a?.tier||"";
   F("location").value=a?.location||""; F("link").value=a?.link||""; F("priority").value=a?.priority||0;
   F("branches").value=a?.branches||""; F("deadline").value=a?.deadline||"";
+  F("stipend").value=a?.stipend??""; F("base").value=a?.base??""; F("ctc").value=a?.ctc??""; F("gpa").value=a?.gpa||"";
   F("status").value=a?.status||"notapplied"; F("outcome").value=a?.outcome||"";
   F("rejstage").value=a?.rejection?.stage||""; F("rejdate").value=a?.rejection?.date||""; F("rejreason").value=a?.rejection?.reason||""; F("rejother").value=a?.rejection?.stageOther||""; $("#f-rejotherWrap").hidden=F("rejstage").value!=="Other";
   F("offerctc").value=a?.offer?.ctc??""; F("offerby").value=a?.offer?.by||""; F("accepted").value=a?.offer?.accepted||"";
@@ -1192,6 +1224,7 @@ function collect(){
   return deriveFromRoles({ id:F("id").value||uid(), createdAt:old?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString(),
     company:F("company").value.trim(), visit:Math.max(1,parseInt(F("visit").value)||1), visitLabel:F("visitlabel").value.trim(), tier:F("tier").value, location:F("location").value.trim(), link:F("link").value.trim(), priority:+F("priority").value||0,
     branches:F("branches").value.trim(), deadline:F("deadline").value,
+    stipend:num(F("stipend").value), base:num(F("base").value), ctc:num(F("ctc").value), gpa:F("gpa").value.trim(),
     roles:draft.roles.filter(r=>r.title||r.ctc||r.stipend).map(r=>({id:r.id||uid(),title:(r.title||"").trim(),jobType:r.jobType||"",stipend:r.stipend===""||r.stipend==null?null:+r.stipend,base:r.base===""||r.base==null?null:+r.base,ctc:r.ctc===""||r.ctc==null?null:+r.ctc,gpa:(r.gpa||"").trim(),applied:!!r.applied})),
     status:F("status").value, outcome:F("outcome").value.trim(),
     rejection:REASONED.has(F("status").value)?{stage:F("status").value==="skipped"?"":F("rejstage").value,stageOther:F("rejstage").value==="Other"?F("rejother").value.trim():"",date:F("rejdate").value,reason:F("rejreason").value.trim()}:(old?.rejection||null),
@@ -1316,7 +1349,7 @@ $("#rounds").addEventListener("input",e=>{const el=e.target; if(el.dataset.ri!=n
 $("#rounds").addEventListener("click",e=>{const b=e.target.closest("[data-rdel]"); if(b){draft.rounds.splice(+b.dataset.rdel,1);renderRounds();}});
 $("#rems").addEventListener("input",e=>{const el=e.target; if(el.dataset.mi!=null) draft.reminders[+el.dataset.mi][el.dataset.f]=el.type==="checkbox"?el.checked:el.value;});
 $("#rems").addEventListener("click",e=>{const b=e.target.closest("[data-mdel]"); if(b){draft.reminders.splice(+b.dataset.mdel,1);renderRems();}});
-F("branches").addEventListener("input",eligHint);
+["branches","gpa"].forEach(id=>F(id).addEventListener("input",eligHint));
 $("#dupHint").addEventListener("click",e=>{
   const a=e.target.closest("[data-edit]"); if(a){e.preventDefault(); const x=apps.find(y=>y.id===a.dataset.edit); if(x) openForm(x); return;}
   const v=e.target.closest("[data-newvisit]"); if(v){e.preventDefault(); const x=apps.find(y=>y.id===v.dataset.newvisit); if(x) newVisitFrom(x);}
